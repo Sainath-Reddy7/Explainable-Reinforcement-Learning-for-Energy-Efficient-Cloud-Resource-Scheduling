@@ -1,0 +1,118 @@
+{
+  "timestamp": "2026-08-12T20:39:37.747657",
+  "seed": 0,
+  "python": "3.13.3",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "config": {
+    "seed": 0,
+    "dataset": {
+      "csv_path": "../../borg_traces_data.csv",
+      "cache_path": "results/borg_task_pool.npz",
+      "pool_size": 5000,
+      "keep_events": [
+        "SCHEDULE",
+        "FINISH",
+        "ENABLE"
+      ],
+      "min_duration_us": 1000000
+    },
+    "env": {
+      "num_vms": 8,
+      "edge_fraction": 0.25,
+      "vm_seed": 42,
+      "tasks_per_episode": 200,
+      "adaptive_weights": false
+    },
+    "qnetwork": {
+      "hidden": [
+        128,
+        64,
+        32
+      ],
+      "lr": 0.0005,
+      "dropout": 0.1,
+      "grad_clip": 10.0
+    },
+    "agent": {
+      "double_dqn": true,
+      "gamma": 0.98,
+      "buffer_size": 50000,
+      "batch_size": 64,
+      "soft_update_tau": 0.005,
+      "target_update_steps": 200,
+      "eps_start": 1.0,
+      "eps_end": 0.05,
+      "eps_decay": 0.99,
+      "per": {
+        "enabled": true,
+        "alpha": 0.6,
+        "beta_start": 0.4,
+        "beta_end": 1.0
+      },
+      "lr_decay_steps": 20000,
+      "lr_decay_rate": 0.95
+    },
+    "train": {
+      "episodes": 150,
+      "eval_every": 25,
+      "eval_runs": 3,
+      "curriculum_range": [
+        150,
+        400
+      ]
+    },
+    "eval": {
+      "loads": [
+        200,
+        400,
+        600,
+        800,
+        1000
+      ],
+      "runs_per_load": 5
+    },
+    "xai": {
+      "kernelshap": {
+        "n_coalitions": 250,
+        "n_background": 200,
+        "n_bg_draws": 8
+      },
+      "occlusion": {
+        "window": 3
+      },
+      "integrated_gradients": {
+        "steps": 50
+      },
+      "n_explained_decisions": 60
+    },
+    "baselines": {
+      "pso": {
+        "swarm_size": 20,
+        "iterations": 30,
+        "inertia": 0.7,
+        "c1": 1.5,
+        "c2": 1.5
+      }
+    },
+    "output": {
+      "dir": "results",
+      "save_manifest": true
+    }
+  },
+  "dataset_stats": {
+    "cpu_req_mean": 0.015743564814329147,
+    "mem_req_mean": 0.008653406985104084,
+    "duration_us_mean": 209699600.0,
+    "priority_mean": 120.82479858398438,
+    "sched_class_mean": 1.1363999843597412,
+    "coll_type_mean": 0.11460000276565552,
+    "cpu_req_std": 0.03337063640356064,
+    "mem_req_std": 0.020749934017658234,
+    "duration_us_std": 129378024.0,
+    "priority_std": 105.23421478271484,
+    "sched_class_std": 1.045081377029419,
+    "coll_type_std": 0.3185386061668396,
+    "n_tasks": 5000
+  },
+  "total_runtime_sec": 208.14603638648987
+}

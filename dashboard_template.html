@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RL-MOTS-XAI v2 — Operator Console</title>
+<style>
+  :root {
+    --navy:#0F2847; --blue:#0066CC; --teal:#17A2B8; --orange:#E27D60;
+    --green:#2D9B6B; --red:#E63946; --purple:#7D6B91; --yellow:#F4A261;
+    --bg:#F0F2F5; --card:#ffffff; --border:#E0E4E8; --muted:#6B7785;
+    --shadow:0 4px 16px rgba(15,40,71,.08); --shadow-lg:0 8px 30px rgba(15,40,71,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',-apple-system,sans-serif;background:var(--bg);color:#1a1a1a;font-size:14px}
+  /* Animated gradient header */
+  header{background:linear-gradient(120deg,var(--navy) 0%,var(--blue) 50%,var(--teal) 100%);
+         background-size:200% 200%;animation:gradShift 8s ease infinite;
+         color:#fff;padding:28px 36px;box-shadow:var(--shadow-lg)}
+  @keyframes gradShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  header h1{font-size:24px;font-weight:700;letter-spacing:-.3px}
+  header .sub{opacity:.9;margin-top:6px;font-size:13px;display:flex;gap:16px;flex-wrap:wrap}
+  header .pill{background:rgba(255,255,255,.18);padding:3px 12px;border-radius:14px;font-size:11px;font-weight:600}
+  .wrap{max-width:1500px;margin:0 auto;padding:24px}
+  .grid{display:grid;gap:20px}
+  .row2{grid-template-columns:1fr 1fr}
+  .row3{grid-template-columns:repeat(3,1fr)}
+  .row4{grid-template-columns:repeat(4,1fr)}
+  .span2{grid-column:span 2}
+  .span4{grid-column:span 4}
+  .card{background:var(--card);border-radius:14px;padding:22px;box-shadow:var(--shadow);
+        border:1px solid var(--border);transition:transform .2s,box-shadow .2s}
+  .card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .card h2{color:var(--navy);font-size:15px;margin-bottom:16px;padding-bottom:10px;
+           border-bottom:2px solid var(--blue);font-weight:700;display:flex;align-items:center;gap:8px}
+  .card h2 .icon{font-size:18px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;font-size:12px}
+  td{padding:8px 11px;border-bottom:1px solid var(--border)}
+  tr:hover td{background:#EBF3FA}
+  tr.best td{background:#E8F7EE;font-weight:600}
+  .metric-card{background:linear-gradient(135deg,#f8f9fa,#fff);border:1px solid var(--border);
+               border-radius:10px;padding:16px;text-align:center}
+  .metric-card .val{font-size:28px;font-weight:800;color:var(--navy);margin:6px 0}
+  .metric-card .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .metric-card .delta{font-size:12px;font-weight:600;margin-top:4px}
+  .up{color:var(--green)} .down{color:var(--red)}
+  .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600}
+  .b-green{background:#D4EDDA;color:#155724}
+  .b-red{background:#F8D7DA;color:#721C24}
+  .b-blue{background:#D1ECF1;color:#0C5460}
+  .b-orange{background:#FDEBD0;color:#8B5A00}
+  .vm-bar{height:22px;border-radius:4px;margin:3px 0;display:flex;align-items:center;
+          padding-left:8px;color:#fff;font-size:10px;font-weight:600;transition:width .8s ease}
+  img{max-width:100%;border-radius:8px;border:1px solid var(--border)}
+  .tag{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .tab-bar{display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border)}
+  .tab{padding:10px 18px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);
+       border-bottom:3px solid transparent;transition:all .2s}
+  .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+  .tab:hover{color:var(--navy)}
+  .tab-content{display:none}.tab-content.active{display:block;animation:fadeIn .3s}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  footer{text-align:center;color:var(--muted);padding:24px;font-size:12px}
+  .progress{height:8px;background:#E0E4E8;border-radius:4px;overflow:hidden;margin:4px 0}
+  .progress-fill{height:100%;background:var(--blue);transition:width 1s ease}
+  .pulse{animation:pulse 2s infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧠 RL-MOTS-XAI v2 — Explainable Cloud Scheduling Operator Console</h1>
+  <div class="sub">
+    <span class="pill">Double DQN + PER</span>
+    <span class="pill">Real Google Borg Workloads</span>
+    <span class="pill">4 XAI Methods</span>
+    <span class="pill">6 Trust Metrics</span>
+    <span class="pill pulse">● LIVE</span>
+  </div>
+</header>
+<div class="wrap">
+
+  <!-- KPI ROW -->
+  <div class="grid row4" style="margin-bottom:20px">
+    <div class="metric-card"><div class="lbl">DQN Cost Reduction</div><div class="val up" id="kpi-cost">—</div><div class="delta" id="kpi-cost-d">vs best heuristic</div></div>
+    <div class="metric-card"><div class="lbl">DQN Miss Rate</div><div class="val" id="kpi-miss">—</div><div class="delta" id="kpi-miss-d">deadline violations</div></div>
+    <div class="metric-card"><div class="lbl">Best XAI Method</div><div class="val" id="kpi-xai" style="font-size:18px">—</div><div class="delta" id="kpi-xai-d">by insertion AOPC</div></div>
+    <div class="metric-card"><div class="lbl">Decisions Explained</div><div class="val" id="kpi-n">—</div><div class="delta">live SHAP + IG + Occ</div></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="card">
+    <div class="tab-bar">
+      <div class="tab active" onclick="showTab('scheduling')">📊 Scheduling</div>
+      <div class="tab" onclick="showTab('xai')">🔍 Explainability</div>
+      <div class="tab" onclick="showTab('decisions')">🧠 Decision Log</div>
+      <div class="tab" onclick="showTab('training')">📈 Training</div>
+    </div>
+
+    <!-- SCHEDULING TAB -->
+    <div id="tab-scheduling" class="tab-content active">
+      <div class="grid row2">
+        <div><h2 style="border:0;padding:0;margin-bottom:12px">Scheduler Performance (averaged across loads)</h2>
+             <div id="scheduler-table"></div></div>
+        <div><h2 style="border:0;padding:0;margin-bottom:12px">Performance Charts</h2>
+             <img id="chart-scheduler" alt="scheduler comparison"></div>
+      </div>
+    </div>
+
+    <!-- XAI TAB -->
+    <div id="tab-xai" class="tab-content">
+      <div class="grid row2">
+        <div><h2 style="border:0;padding:0;margin-bottom:12px">Trust Benchmark — 4 Methods × 6 Metrics</h2>
+             <div id="xai-table"></div></div>
+        <div><h2 style="border:0;padding:0;margin-bottom:12px">Method Comparison</h2>
+             <img id="chart-xai" alt="xai comparison"></div>
+      </div>
+      <div class="grid row2" style="margin-top:16px">
+        <div><h2 style="border:0;padding:0;margin-bottom:12px">Explanation Latency (log scale)</h2>
+             <img id="chart-latency" alt="latency"></div>
+        <div><h2 style="border:0;padding:0;margin-bottom:12px">Trade-off Summary</h2>
+             <div id="xai-tradeoff"></div></div>
+      </div>
+    </div>
+
+    <!-- DECISIONS TAB -->
+    <div id="tab-decisions" class="tab-content">
+      <h2 style="border:0;padding:0;margin-bottom:12px">Why Each Task Went Where — KernelSHAP Attributions</h2>
+      <div id="decision-log"></div>
+    </div>
+
+    <!-- TRAINING TAB -->
+    <div id="tab-training" class="tab-content">
+      <div class="grid row2">
+        <div><h2 style="border:0;padding:0;margin-bottom:12px">Reward Learning Curve</h2>
+             <img id="chart-learning" alt="learning curve"></div>
+        <div><h2 style="border:0;padding:0;margin-bottom:12px">Training Summary</h2>
+             <div id="train-summary"></div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<footer>RL-MOTS-XAI v2 · <span id="manifest-time"></span> · Pure NumPy · Double DQN + PER</footer>
+
+<script id="data" type="application/json">{{DATA}}</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+function showTab(id){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ---- scheduler table + KPIs ----
+(function(){
+  const loads = Object.keys(D.comparison).sort((a,b)=>+a-+b);
+  const names = Object.keys(D.comparison[loads[0]]);
+  const avg = {};
+  names.forEach(n=>{
+    avg[n]={};
+    ['makespan_s','cost','energy_wh','deadline_miss_rate','di'].forEach(k=>{
+      avg[n][k]=loads.reduce((s,l)=>s+D.comparison[l][n][k],0)/loads.length;
+    });
+  });
+  const score = n => avg[n].cost + avg[n].energy_wh*0.5 + avg[n].deadline_miss_rate*50000;
+  const ranked = names.slice().sort((a,b)=>score(a)-score(b));
+  const dqn = avg['DQN (ours)'];
+  const bestHeur = names.filter(n=>n!=='DQN (ours)').sort((a,b)=>score(a)-score(b))[0];
+
+  let html='<table><thead><tr><th>Scheduler</th><th>Makespan (s)</th><th>Cost ($)</th><th>Energy (Wh)</th><th>Miss %</th><th>DI</th><th>Rank</th></tr></thead><tbody>';
+  ranked.forEach((n,i)=>{
+    const a=avg[n]; const isBest=i===0;
+    html+=`<tr class="${isBest?'best':''}"><td>${n}${isBest?' ★':''}</td>
+      <td>${a.makespan_s.toFixed(0)}</td><td>${a.cost.toFixed(0)}</td>
+      <td>${a.energy_wh.toFixed(0)}</td><td>${(a.deadline_miss_rate*100).toFixed(1)}%</td>
+      <td>${a.di.toFixed(2)}</td><td><span class="badge ${i<2?'b-green':i>5?'b-red':'b-blue'}">#${i+1}</span></td></tr>`;
+  });
+  html+='</tbody></table>';
+  document.getElementById('scheduler-table').innerHTML=html;
+
+  // KPIs
+  const costSave = bestHeur ? ((1-dqn.cost/avg[bestHeur].cost)*100) : 0;
+  document.getElementById('kpi-cost').textContent = (costSave>=0?'▼ ':'▲ ')+Math.abs(costSave).toFixed(1)+'%';
+  document.getElementById('kpi-cost').className = 'val '+(costSave>=0?'up':'down');
+  document.getElementById('kpi-miss').textContent = (dqn.deadline_miss_rate*100).toFixed(1)+'%';
+  document.getElementById('kpi-miss').className = 'val '+(dqn.deadline_miss_rate<0.1?'up':'down');
+  document.getElementById('kpi-n').textContent = D.decision_log.length;
+
+  // best XAI method
+  const methods = Object.keys(D.trust).filter(m=>m!=='raw_inference_latency_sec');
+  const bestXai = methods.slice().sort((a,b)=>(D.trust[b].insertion_aopc||0)-(D.trust[a].insertion_aopc||0))[0];
+  document.getElementById('kpi-xai').textContent = bestXai.replace(/_/g,' ');
+  document.getElementById('kpi-xai-d').textContent = 'AOPC='+(D.trust[bestXai].insertion_aopc||0).toFixed(3);
+})();
+
+// ---- XAI table ----
+(function(){
+  const methods = Object.keys(D.trust).filter(m=>m!=='raw_inference_latency_sec');
+  let html='<table><thead><tr><th>Method</th><th>Del AOPC ↑</th><th>Ins AOPC ↑</th><th>Top-10 Fid</th><th>Consist ↑</th><th>Infid ↓</th><th>Lat (ms)</th></tr></thead><tbody>';
+  methods.forEach(m=>{
+    const t=D.trust[m];
+    html+=`<tr><td><b>${m.replace(/_/g,' ')}</b></td>
+      <td>${t.deletion_aopc.toFixed(4)}</td><td>${(t.insertion_aopc||0).toFixed(4)}</td>
+      <td>${(t.fidelity.top10_action_match*100).toFixed(0)}%</td>
+      <td>${(t.consistency||0).toFixed(4)}</td><td>${t.infidelity.toFixed(5)}</td>
+      <td>${(t.mean_latency_sec*1000).toFixed(2)}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  html+=`<div class="tag" style="margin-top:10px">Raw inference: ${(D.trust.raw_inference_latency_sec*1000).toFixed(3)} ms</div>`;
+  document.getElementById('xai-table').innerHTML=html;
+
+  // tradeoff summary
+  let to='<div style="font-size:13px;line-height:1.8">';
+  const bestFaith = methods.slice().sort((a,b)=>(D.trust[b].insertion_aopc||0)-(D.trust[a].insertion_aopc||0))[0];
+  const bestFast = methods.slice().sort((a,b)=>D.trust[a].mean_latency_sec-D.trust[b].mean_latency_sec)[0];
+  const bestStable = methods.slice().sort((a,b)=>(D.trust[b].consistency||0)-(D.trust[a].consistency||0))[0];
+  to+=`<p>🏆 <b>Most faithful</b> (Insertion AOPC): <span class="badge b-green">${bestFaith.replace(/_/g,' ')}</span></p>`;
+  to+=`<p>⚡ <b>Fastest</b>: <span class="badge b-blue">${bestFast.replace(/_/g,' ')}</span> (${(D.trust[bestFast].mean_latency_sec*1000).toFixed(2)} ms)</p>`;
+  to+=`<p>🎯 <b>Most stable</b> (consistency): <span class="badge b-orange">${bestStable.replace(/_/g,' ')}</span></p>`;
+  to+='<p style="margin-top:12px;color:var(--muted);font-size:12px">No single method dominates — the faithfulness-vs-latency-vs-stability trade-off is the project\'s key finding.</p>';
+  to+='</div>';
+  document.getElementById('xai-tradeoff').innerHTML=to;
+})();
+
+// ---- decision log ----
+(function(){
+  const log=D.decision_log.slice(0,20);
+  let html='<table><thead><tr><th>Step</th><th>VM</th><th>Exec(s)</th><th>Cost</th><th>Energy</th><th>Deadline</th><th>Prio</th><th>Top Feature</th><th>VM Contribution Breakdown</th></tr></thead><tbody>';
+  log.forEach(d=>{
+    const topF=d.top_features[0];
+    const vmC=Object.entries(d.vm_contributions).filter(([k])=>k.startsWith('vm_')).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+    const maxV=Math.max(...vmC.map(([,v])=>Math.abs(v)),0.001);
+    const bars=vmC.slice(0,5).map(([k,v])=>{
+      const w=Math.abs(v)/maxV*100; const col=v>=0?'var(--blue)':'var(--red)';
+      return `<div class="vm-bar" style="width:${w}%;background:${col}">${k.replace('vm_','VM')}: ${v.toFixed(3)}</div>`;
+    }).join('');
+    html+=`<tr><td>${d.step}</td><td><b>VM${d.chosen_vm}</b></td><td>${d.exec_time_s.toFixed(1)}</td>
+      <td>$${d.cost.toFixed(3)}</td><td>${d.energy_wh.toFixed(4)}</td>
+      <td><span class="badge ${d.deadline_met?'b-green':'b-red'}">${d.deadline_met?'MET':'MISS'}</span></td>
+      <td>${d.priority.toFixed(0)}</td>
+      <td><span class="tag">${topF.name}</span><br><b>${topF.phi.toFixed(4)}</b></td>
+      <td style="min-width:220px">${bars}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  document.getElementById('decision-log').innerHTML=html;
+})();
+
+// ---- training summary ----
+(function(){
+  const h=D.history||[];
+  if(!h.length){document.getElementById('train-summary').innerHTML='<p class="tag">No history</p>';return;}
+  const last=h[h.length-1], first=h[0];
+  let html='<div style="font-size:13px;line-height:1.9">';
+  html+=`<div class="metric-card" style="text-align:left;margin-bottom:10px"><div class="lbl">Episodes</div><div class="val" style="font-size:22px">${h.length}</div></div>`;
+  html+=`<p><b>Reward:</b> ${first.reward.toFixed(0)} → <span class="up">${last.reward.toFixed(0)}</span></p>`;
+  html+=`<p><b>Makespan:</b> ${first.makespan_s.toFixed(0)}s → ${last.makespan_s.toFixed(0)}s</p>`;
+  html+=`<p><b>Miss rate:</b> ${(first.deadline_miss_rate*100).toFixed(1)}% → ${(last.deadline_miss_rate*100).toFixed(1)}%</p>`;
+  html+=`<p><b>Final epsilon:</b> ${last.eps.toFixed(3)}</p>`;
+  html+=`<p><b>Loss:</b> ${(last.loss||0).toFixed(4)}</p>`;
+  html+='</div>';
+  document.getElementById('train-summary').innerHTML=html;
+})();
+
+// ---- images ----
+['scheduler','learning','xai','latency'].forEach(k=>{
+  const img=document.getElementById('chart-'+k);
+  if(D.images[k]) img.src=D.images[k]; else img.style.display='none';
+});
+
+if(D.manifest) document.getElementById('manifest-time').textContent=new Date(D.manifest.timestamp).toLocaleString();
+</script>
+</body>
+</html>

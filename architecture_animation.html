@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RL-MOTS-XAI v2 — How It Works</title>
+<style>
+  :root {
+    --navy:#0F2847; --blue:#0066CC; --teal:#17A2B8; --orange:#E27D60;
+    --green:#2D9B6B; --red:#E63946; --purple:#7D6B91; --yellow:#F4A261;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a1628;color:#e8eef5;
+       min-height:100vh;overflow-x:hidden}
+  .title-bar{background:linear-gradient(135deg,var(--navy),var(--blue));padding:24px;
+             text-align:center;box-shadow:0 4px 20px rgba(0,102,204,.3)}
+  .title-bar h1{font-size:26px;font-weight:700}
+  .title-bar p{opacity:.8;margin-top:6px;font-size:14px}
+  .controls{text-align:center;padding:16px;background:#0f2847}
+  .controls button{background:var(--blue);color:#fff;border:0;padding:10px 24px;
+                   border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin:0 6px;
+                   transition:all .2s}
+  .controls button:hover{background:#0052a3;transform:translateY(-1px)}
+  .controls .speed{margin-left:12px;font-size:13px}
+  .controls input{vertical-align:middle}
+  .stage{padding:40px 20px;max-width:1300px;margin:0 auto}
+  .row{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:50px;
+       position:relative;flex-wrap:wrap}
+  .node{background:linear-gradient(135deg,#162d50,#1e3a5f);border:2px solid #2a4a6f;
+        border-radius:14px;padding:18px 20px;min-width:180px;max-width:220px;
+        text-align:center;position:relative;transition:all .4s;opacity:.4}
+  .node.active{opacity:1;border-color:var(--teal);box-shadow:0 0 30px rgba(23,162,184,.5);
+               transform:scale(1.05)}
+  .node.done{opacity:.85;border-color:var(--green)}
+  .node .emoji{font-size:32px;margin-bottom:8px}
+  .node .name{font-size:14px;font-weight:700;color:#fff}
+  .node .desc{font-size:11px;color:#8ea5c4;margin-top:6px;line-height:1.4}
+  .node .tag{display:inline-block;font-size:9px;padding:2px 8px;border-radius:10px;
+             margin-top:8px;background:#1a3556;color:var(--teal)}
+  .arrow{font-size:28px;color:#2a4a6f;margin:0 -4px;transition:color .3s;align-self:center}
+  .arrow.lit{color:var(--yellow);text-shadow:0 0 10px var(--yellow)}
+  .detail-box{background:#0f2847;border:1px solid #2a4a6f;border-radius:14px;
+              padding:24px;margin:20px auto;max-width:1100px;min-height:120px;
+              transition:all .4s}
+  .detail-box h3{color:var(--teal);font-size:18px;margin-bottom:10px}
+  .detail-box p{font-size:14px;line-height:1.7;color:#c5d4e8}
+  .detail-box .formula{background:#0a1628;padding:12px;border-radius:8px;
+                       font-family:'Courier New',monospace;color:var(--yellow);
+                       margin-top:12px;font-size:13px;border-left:3px solid var(--orange)}
+  .phase-label{text-align:center;font-size:11px;text-transform:uppercase;
+               letter-spacing:2px;color:#5a7090;margin-bottom:14px;font-weight:700}
+  .flow-particle{position:absolute;width:10px;height:10px;background:var(--yellow);
+                 border-radius:50%;box-shadow:0 0 12px var(--yellow);pointer-events:none}
+  .vm-grid{display:flex;gap:6px;justify-content:center;margin:8px 0}
+  .vm-cell{width:24px;height:24px;border-radius:4px;background:#1a3556;border:1px solid #2a4a6f;
+           display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#5a7090}
+  .vm-cell.hot{background:var(--orange);color:#fff;box-shadow:0 0 8px var(--orange)}
+  .legend{display:flex;gap:16px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:#8ea5c4}
+  .legend-dot{width:12px;height:12px;border-radius:3px}
+  footer{text-align:center;padding:20px;color:#5a7090;font-size:12px}
+</style>
+</head>
+<body>
+<div class="title-bar">
+  <h1>🧠 How RL-MOTS-XAI v2 Works</h1>
+  <p>Explainable Double-DQN Cloud Scheduling on Real Google Borg Workloads</p>
+</div>
+
+<div class="controls">
+  <button onclick="play()">▶ Play Animation</button>
+  <button onclick="reset()">↺ Reset</button>
+  <span class="speed">Speed: <input type="range" id="speed" min="500" max="4000" value="1800" step="100" oninput="updateSpeed()"> <span id="speedlbl">1.8s</span></span>
+</div>
+
+<div class="stage">
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--teal)"></div>Active step</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Completed</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>VM under load</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>Data flow</div>
+  </div>
+
+  <!-- PHASE 1: Data -->
+  <div class="phase-label">Phase 1 · Real Workload Ingestion</div>
+  <div class="row" id="row1">
+    <div class="node" id="n0"><div class="emoji">📊</div><div class="name">Google Borg Traces</div>
+      <div class="desc">328 MB · 405,894 rows of real production cloud tasks</div><div class="tag">CSV</div></div>
+    <div class="arrow" id="a0">→</div>
+    <div class="node" id="n1"><div class="emoji">🧹</div><div class="name">borg_loader.py</div>
+      <div class="desc">Filter SCHEDULE/FINISH events · parse CPU/mem · cache 5K tasks</div><div class="tag">.npz cache</div></div>
+    <div class="arrow" id="a1">→</div>
+    <div class="node" id="n2"><div class="emoji">📋</div><div class="name">Task Pool</div>
+      <div class="desc">cpu_req · mem_req · duration · priority · sched_class</div><div class="tag">5,000 tasks</div></div>
+  </div>
+
+  <!-- PHASE 2: Env -->
+  <div class="phase-label">Phase 2 · Cloud-Edge Environment</div>
+  <div class="row" id="row2">
+    <div class="node" id="n3"><div class="emoji">🌥️</div><div class="name">8 Heterogeneous VMs</div>
+      <div class="desc">2 edge (low power) + 6 cloud (high capacity) · finite CPU/RAM</div>
+      <div class="vm-grid" id="vm-grid"></div></div>
+    <div class="arrow" id="a2">→</div>
+    <div class="node" id="n4"><div class="emoji">📥</div><div class="name">Task Arrives</div>
+      <div class="desc">Online scheduling: one task at a time, each with a deadline</div><div class="tag">45-dim state</div></div>
+    <div class="arrow" id="a3">→</div>
+    <div class="node" id="n5"><div class="emoji">🔢</div><div class="name">State Vector</div>
+      <div class="desc">5 task features + 5×8 VM features = 45 dimensions</div><div class="tag">normalized</div></div>
+  </div>
+
+  <!-- PHASE 3: DQN -->
+  <div class="phase-label">Phase 3 · Double DQN Decision</div>
+  <div class="row" id="row3">
+    <div class="node" id="n6"><div class="emoji">🧠</div><div class="name">Q-Network (3-layer MLP)</div>
+      <div class="desc">45 → 128 → 64 → 32 → 8 · ReLU · dropout · pure NumPy</div><div class="tag">Adam optimizer</div></div>
+    <div class="arrow" id="a4">→</div>
+    <div class="node" id="n7"><div class="emoji">⚡</div><div class="name">8 Q-Values</div>
+      <div class="desc">One score per candidate VM · argmax = chosen action</div><div class="tag">Double DQN</div></div>
+    <div class="arrow" id="a5">→</div>
+    <div class="node" id="n8"><div class="emoji">🎯</div><div class="name">Assign to Best VM</div>
+      <div class="desc">Task dispatched · reward computed · stored in PER buffer</div><div class="tag">experience</div></div>
+  </div>
+
+  <!-- PHASE 4: Training loop -->
+  <div class="phase-label">Phase 4 · Training Loop (PER + Target Net)</div>
+  <div class="row" id="row4">
+    <div class="node" id="n9"><div class="emoji">🌳</div><div class="name">SumTree Buffer</div>
+      <div class="desc">50K transitions · TD-error prioritized sampling</div><div class="tag">α=0.6, β↑</div></div>
+    <div class="arrow" id="a6">→</div>
+    <div class="node" id="n10"><div class="emoji">🔄</div><div class="name">Double DQN Update</div>
+      <div class="desc">Online selects action · target evaluates · soft Polyak update</div><div class="tag">τ=0.005</div></div>
+    <div class="arrow" id="a7">→</div>
+    <div class="node" id="n11"><div class="emoji">📈</div><div class="name">Converged Policy</div>
+      <div class="desc">500 episodes · beats heuristics on cost + QoS</div><div class="tag">trained</div></div>
+  </div>
+
+  <!-- PHASE 5: XAI -->
+  <div class="phase-label">Phase 5 · Explainability (4 Methods)</div>
+  <div class="row" id="row5">
+    <div class="node" id="n12"><div class="emoji">🔍</div><div class="name">KernelSHAP</div>
+      <div class="desc">250 coalitions · WLS · Shapley values</div><div class="tag">37 ms</div></div>
+    <div class="node" id="n13"><div class="emoji">⚡</div><div class="name">Grad×Input</div>
+      <div class="desc">Exact analytic gradient · fastest method</div><div class="tag">0.15 ms</div></div>
+    <div class="node" id="n14"><div class="emoji">🔲</div><div class="name">Occlusion</div>
+      <div class="desc">Slide window · measure ΔQ</div><div class="tag">2 ms</div></div>
+    <div class="node" id="n15"><div class="emoji">📈</div><div class="name">Integ. Gradients</div>
+      <div class="desc">Riemann sum along path · axiom-satisfying</div><div class="tag">3 ms</div></div>
+  </div>
+
+  <!-- PHASE 6: Trust -->
+  <div class="phase-label">Phase 6 · Trust Verification Engine</div>
+  <div class="row" id="row6">
+    <div class="node" id="n16"><div class="emoji">✅</div><div class="name">6 Trust Metrics</div>
+      <div class="desc">Deletion/Insertion AOPC · Fidelity · Consistency · Infidelity · Stability</div><div class="tag">audited</div></div>
+    <div class="arrow" id="a8">→</div>
+    <div class="node" id="n17"><div class="emoji">📊</div><div class="name">Operator Dashboard</div>
+      <div class="desc">Every decision: why this VM? how faithful is the explanation?</div><div class="tag">transparent</div></div>
+  </div>
+</div>
+
+<div class="detail-box" id="detail">
+  <h3>Welcome 👋</h3>
+  <p>Click <b>Play Animation</b> to walk through the full RL-MOTS-XAI v2 pipeline — from raw Borg traces through Double-DQN scheduling to audited explainability. Each step lights up with details.</p>
+</div>
+
+<footer>RL-MOTS-XAI v2 · Architecture Walkthrough · Pure NumPy · Double DQN + PER + 4 XAI Methods</footer>
+
+<script>
+const steps = [
+  {nodes:[0], arrows:[], title:'📊 Google Borg Traces',
+   body:'We start with 328 MB of REAL production cloud workload data from Google\'s Borg cluster — 405,894 task lifecycle events with actual CPU/memory requests, durations, priorities and latency classes. This replaces the synthetic random tasks used in v1.',
+   formula:'borg_traces_data.csv → 405,894 rows × 34 columns'},
+  {nodes:[1], arrows:[0], title:'🧹 Data Cleaning (borg_loader.py)',
+   body:'We filter to SCHEDULE/FINISH/ENABLE events, parse the stringified resource_request dicts, drop null/zero-duration tasks, and sample 5,000 clean tasks. The result is cached to .npz so subsequent runs reload in <0.1s.',
+   formula:'pool = 5000 × {cpu_req, mem_req, duration_us, priority, sched_class, coll_type}'},
+  {nodes:[2], arrows:[1], title:'📋 Cleaned Task Pool',
+   body:'Real Borg distributions: CPU ~0.016 cores, memory ~0.009, duration ~210s, priority 0-450. Every episode resamples from this pool so the DQN trains on genuine workload patterns.',
+   formula:'E[cpu_req]=0.016  E[duration]=210s  priority∈[0,450]'},
+  {nodes:[3], arrows:[2], title:'🌥️ Heterogeneous VM Pool',
+   body:'8 VMs: 2 low-power edge nodes (capacity 0.10-0.25 cores) + 6 cloud servers (0.45-1.0 cores). Each VM runs many tasks concurrently via CPU time-sharing — exactly like real Borg. Tasks that oversubscribe a VM queue up.',
+   formula:'parallelism = capacity_cores / cpu_req  →  cloud VM holds ~60 tasks at once'},
+  {nodes:[4,5], arrows:[3], title:'🔢 45-Dimensional State Vector',
+   body:'For each arriving task: 5 task features (cpu, mem, duration, priority, sched_class) + 5 per-VM features (utilization, energy rate, cost rate, queue, capacity fit) × 8 VMs = 45 dimensions. All normalized to [0,1].',
+   formula:'state = [task(5) , vm0(5), vm1(5), ..., vm7(5)] = 45-dim'},
+  {nodes:[6], arrows:[4], title:'🧠 Q-Network (3-layer MLP, pure NumPy)',
+   body:'A from-scratch neural network: 45→128→64→32→8 with ReLU activations, dropout regularization, input normalization, and a hand-derived Adam optimizer. No PyTorch/TensorFlow — full mathematical transparency.',
+   formula:'Q(s,a;θ) = W₃·ReLU(W₂·ReLU(W₁·s_norm + b₁) + b₂) + b₃'},
+  {nodes:[7], arrows:[5], title:'⚡ Double DQN Action Selection',
+   body:'The network outputs 8 Q-values (one per VM). Double DQN: the ONLINE network picks argmax action, the TARGET network evaluates it — this reduces the Q-overestimation bias that hurt v1\'s vanilla DQN.',
+   formula:'a* = argmax_a Q_online(s\',a)   y = r + γ·Q_target(s\',a*)'},
+  {nodes:[8], arrows:[6], title:'🎯 Task Dispatch + Reward',
+   body:'Task assigned to the chosen VM. Multi-objective reward: energy + cost + QoS(deadlines) + queue wait + load balance. QoS is priority-weighted so high-priority jobs that meet deadlines earn more.',
+   formula:'r = -w₁·energy - w₂·cost + w₃·QoS·prio - w₄·wait - w₅·imbalance'},
+  {nodes:[9], arrows:[7], title:'🌳 Prioritized Experience Replay (SumTree)',
+   body:'Transitions stored in a SumTree buffer (50K capacity). High-TD-error transitions sampled more often, corrected by importance-sampling weights that anneal β from 0.4→1.0. Rare-but-informative backlog events get learned from.',
+   formula:'P(i) = p_i^α / Σ p_j    where p_i = |TD_error| + ε'},
+  {nodes:[10], arrows:[8], title:'🔄 Training Update',
+   body:'Sample minibatch, compute Double-DQN targets, take weighted gradient step, update priorities, then soft-update target network via Polyak averaging (τ=0.005) for smooth target drift.',
+   formula:'θ_target ← τ·θ_online + (1-τ)·θ_target'},
+  {nodes:[11], arrows:[9], title:'📈 Converged Policy',
+   body:'After 500 episodes with curriculum learning (variable batch sizes), the DQN learns to balance cost vs deadlines vs load — beating 7 baseline schedulers on the real Borg workloads.',
+   formula:'π* = argmax_π E[Σ γᵗ r_t]  over 500 episodes'},
+  {nodes:[12,13,14,15], arrows:[], title:'🔍 4 XAI Methods Explain Every Decision',
+   body:'For each scheduling choice, FOUR attribution methods compute per-feature importance: <b>KernelSHAP</b> (coalition sampling + WLS), <b>Gradient×Input</b> (exact gradient), <b>Occlusion</b> (window sliding), <b>Integrated Gradients</b> (axiom-satisfying path integral).',
+   formula:'φ_i = contribution of feature i to Q(s, chosen_VM)'},
+  {nodes:[16], arrows:[], title:'✅ Trust Verification (6 Metrics)',
+   body:'Explanations are AUDITED, not just displayed: <b>Deletion-AOPC</b> (does removing top features collapse Q?), <b>Insertion-AOPC</b> (does adding them raise Q?), <b>Top-K Fidelity</b>, <b>Consistency</b> (stable across similar states?), <b>Infidelity</b>, <b>Stability</b>.',
+   formula:'faithful ⟺ deletion hurts AND insertion helps AND low infidelity'},
+  {nodes:[17], arrows:[8], title:'📊 Operator Dashboard',
+   body:'Every decision is transparent: which VM was chosen, why (top SHAP features), energy/cost impact, deadline status, and how faithful the explanation is. Operators can audit and trust every allocation.',
+   formula:'trust = performance × transparency × verified faithfulness'},
+];
+
+let curStep = -1;
+let timer = null;
+let speed = 1800;
+
+function updateSpeed(){
+  speed = +document.getElementById('speed').value;
+  document.getElementById('speedlbl').textContent = (speed/1000).toFixed(1)+'s';
+}
+
+function renderVMs(){
+  const grid = document.getElementById('vm-grid');
+  grid.innerHTML = '';
+  for(let i=0;i<8;i++){
+    const c = document.createElement('div');
+    c.className = 'vm-cell';
+    c.textContent = i;
+    c.id = 'vmcell-'+i;
+    grid.appendChild(c);
+  }
+}
+renderVMs();
+
+function activateStep(idx){
+  // mark all previous as done
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.arrow').forEach(a=>a.classList.remove('lit'));
+  const allPrevNodes = new Set();
+  for(let i=0;i<=idx;i++) steps[i].nodes.forEach(n=>allPrevNodes.add(n));
+  allPrevNodes.forEach(n=>{
+    const el = document.getElementById('n'+n);
+    if(el){ el.classList.remove('active'); el.classList.add('done'); }
+  });
+  // activate current
+  const step = steps[idx];
+  step.nodes.forEach(n=>{
+    const el = document.getElementById('n'+n);
+    if(el){ el.classList.add('active'); el.classList.remove('done'); }
+  });
+  step.arrows.forEach(a=>{
+    const el = document.getElementById('a'+a);
+    if(el) el.classList.add('lit');
+  });
+  // VM heat animation when we hit the dispatch step
+  if(idx===7){
+    [2,3,5].forEach(i=>{
+      const c = document.getElementById('vmcell-'+i);
+      if(c){ c.classList.add('hot'); setTimeout(()=>c.classList.remove('hot'), speed*0.8); }
+    });
+  }
+  // detail box
+  const d = document.getElementById('detail');
+  d.innerHTML = `<h3>${step.title}</h3><p>${step.body}</p>` +
+                (step.formula?`<div class="formula">${step.formula}</div>`:'');
+}
+
+function play(){
+  if(timer) return;
+  curStep = -1;
+  // clear done states
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('done','active'));
+  next();
+}
+function next(){
+  curStep++;
+  if(curStep >= steps.length){ curStep = -1; timer=null; return; }
+  activateStep(curStep);
+  timer = setTimeout(next, speed);
+}
+function reset(){
+  if(timer){ clearTimeout(timer); timer=null; }
+  curStep = -1;
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('active','done'));
+  document.querySelectorAll('.arrow').forEach(a=>a.classList.remove('lit'));
+  document.getElementById('detail').innerHTML =
+    '<h3>Welcome 👋</h3><p>Click <b>Play Animation</b> to walk through the full RL-MOTS-XAI v2 pipeline — from raw Borg traces through Double-DQN scheduling to audited explainability. Each step lights up with details.</p>';
+}
+</script>
+</body>
+</html>

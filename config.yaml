@@ -1,0 +1,101 @@
+# ============================================================================
+# RL-MOTS-XAI v2 — Central Configuration
+# ----------------------------------------------------------------------------
+# Every hyperparameter lives here so runs are reproducible and tunable without
+# touching code.  Override any field from the CLI / experiment scripts.
+# ============================================================================
+
+seed: 0
+
+# ---- Dataset ---------------------------------------------------------------
+dataset:
+  # Path to the raw Google Borg trace CSV (328 MB).
+  csv_path: "../borg_traces_data.csv"
+  # Cache file for the cleaned task pool (rebuilt only when csv mtime changes).
+  cache_path: "results/borg_task_pool.npz"
+  # How many cleaned tasks to keep in the pool.  Larger = more diverse but
+  # slower first-load.  5000 ~ 1-2 min clean + <1s reload thereafter.
+  pool_size: 5000
+  # Only keep tasks whose event is one of these (real scheduled+finished jobs).
+  keep_events: ["SCHEDULE", "FINISH", "ENABLE"]
+  # Drop tasks whose CPU/mem request is null or whose duration is non-positive.
+  min_duration_us: 1_000_000        # 1 second
+
+# ---- Environment / Infrastructure ------------------------------------------
+env:
+  num_vms: 8
+  edge_fraction: 0.25               # fraction of VMs that are low-power edge nodes
+  vm_seed: 42                       # fixed infra so every scheduler sees the same pool
+  tasks_per_episode: 200            # tasks streamed per training/eval episode
+  adaptive_weights: false           # fixed weights = stable learning (adaptive caused oscillation)
+
+# ---- Q-Network -------------------------------------------------------------
+qnetwork:
+  hidden: [128, 64, 32]             # 3 hidden layers (v1 used [64,64])
+  lr: 0.0005
+  dropout: 0.1                      # dropout on hidden activations (training only)
+  grad_clip: 10.0
+
+# ---- DQN Agent -------------------------------------------------------------
+agent:
+  # Double DQN: online net selects action, target net evaluates it.
+  double_dqn: true
+  gamma: 0.98
+  buffer_size: 50000                # v1 used 20000
+  batch_size: 64
+  # Soft target update (Polyak averaging) instead of hard copy.
+  soft_update_tau: 0.005
+  target_update_steps: 200          # still periodic-corrected for safety
+  # Epsilon-greedy exploration schedule.
+  eps_start: 1.0
+  eps_end: 0.05
+  eps_decay: 0.99        # faster decay so greedy policy kicks in sooner
+  # Prioritized Experience Replay (Schaul et al. 2016).
+  per:
+    enabled: true
+    alpha: 0.6                      # priority exponent
+    beta_start: 0.4                 # importance-sampling anneal start
+    beta_end: 1.0                   # ... end
+  # Learning-rate decay (applied per train step).
+  lr_decay_steps: 20000
+  lr_decay_rate: 0.95
+
+# ---- Training --------------------------------------------------------------
+train:
+  episodes: 150                     # sweet spot: sharpest Q-function (more = overtrained)
+  eval_every: 25
+  eval_runs: 3
+  # Curriculum: resample tasks_per_episode from this range each episode so the
+  # agent sees backlog dynamics across the full eval range.
+  curriculum_range: [150, 400]
+
+# ---- Evaluation ------------------------------------------------------------
+eval:
+  loads: [200, 400, 600, 800, 1000]
+  runs_per_load: 5
+
+# ---- Explainability --------------------------------------------------------
+xai:
+  kernelshap:
+    n_coalitions: 250               # v1 used 200
+    n_background: 200               # background pool size
+    n_bg_draws: 8                   # marginalization draws per coalition
+  occlusion:
+    window: 3                       # features occluded per step
+  integrated_gradients:
+    steps: 50                       # Riemann-sum steps along baseline->instance
+  n_explained_decisions: 60         # decisions to explain in the rollout
+
+# ---- Baselines -------------------------------------------------------------
+baselines:
+  pso:
+    swarm_size: 20
+    iterations: 30
+    inertia: 0.7
+    c1: 1.5
+    c2: 1.5
+
+# ---- Output ----------------------------------------------------------------
+output:
+  dir: "results"
+  save_manifest: true               # dump config + dataset stats + git hash

@@ -1,0 +1,59 @@
+{
+  "kernelshap": {
+    "fidelity": {
+      "top3_action_match": 0.36666666666666664,
+      "top5_action_match": 0.36666666666666664,
+      "top10_action_match": 0.45
+    },
+    "deletion_aopc": 0.8056690733879804,
+    "insertion_aopc": 1.0407719979683558,
+    "infidelity": 10.300003404915334,
+    "consistency": 0.2802345348888441,
+    "stability": 65.51784976116186,
+    "n_consistency_pairs": 60,
+    "mean_latency_sec": 0.050909094015757245
+  },
+  "grad_x_input": {
+    "fidelity": {
+      "top3_action_match": 0.3333333333333333,
+      "top5_action_match": 0.3333333333333333,
+      "top10_action_match": 0.3333333333333333
+    },
+    "deletion_aopc": 0.04088210106516878,
+    "insertion_aopc": 0.17426958233118056,
+    "infidelity": 4.672704057395459,
+    "consistency": 0.9998215019702912,
+    "stability": 112628.80930366516,
+    "n_consistency_pairs": 60,
+    "mean_latency_sec": 0.0001524647076924642
+  },
+  "occlusion": {
+    "fidelity": {
+      "top3_action_match": 0.36666666666666664,
+      "top5_action_match": 0.38333333333333336,
+      "top10_action_match": 0.5333333333333333
+    },
+    "deletion_aopc": 0.8984267598638932,
+    "insertion_aopc": 1.0987615600228309,
+    "infidelity": 8.83259305904309,
+    "consistency": 0.6967517537375291,
+    "stability": 6.726259791851044,
+    "n_consistency_pairs": 60,
+    "mean_latency_sec": 0.002741070588429769
+  },
+  "integrated_gradients": {
+    "fidelity": {
+      "top3_action_match": 0.3333333333333333,
+      "top5_action_match": 0.3333333333333333,
+      "top10_action_match": 0.3333333333333333
+    },
+    "deletion_aopc": 0.07385207007173449,
+    "insertion_aopc": 0.1917478395237898,
+    "infidelity": 8.761586177349091,
+    "consistency": 0.15321656165954967,
+    "stability": 106402.81254468461,
+    "n_consistency_pairs": 60,
+    "mean_latency_sec": 0.004754304885864258
+  },
+  "raw_inference_latency_sec": 6.835460662841797e-05
+}
