@@ -1,0 +1,2 @@
+# Explainable-Reinforcement-Learning-for-Energy-Efficient-Cloud-Resource-Scheduling
+A Double DQN cloud-edge task scheduler with a from-scratch KernelSHAP explainability layer, trained on real Google Borg traces and audited with 6 trust metrics (Deletion/Insertion AOPC, Infidelity, Stability). Pure NumPy — no PyTorch/TensorFlow. Benchmarked against 7 baselines (FCFS, RR, Min-Min, Max-Min, PSO, Q-learning).
