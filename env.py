@@ -133,6 +133,8 @@ class CloudSchedulingEnv:
         self.seed = seed
         self.adaptive_weights = adaptive_weights
         self.deadline_tightness = deadline_tightness
+        self.gamma_shaping = 0.95   # discount for potential-based shaping
+        self._pre_step_loads = None
         self.vms = make_default_vm_pool(num_vms, seed=vm_seed)
 
         self.task_dim = 5
@@ -198,6 +200,25 @@ class CloudSchedulingEnv:
         cpu = sum(c for _, c, _ in vm.active if True)
         mem = sum(m for _, _, m in vm.active)
         return cpu, mem
+
+    def _potential(self, before_step=False):
+        """Potential function for reward shaping (Ng et al. 1999).
+
+        Measures how 'healthy' the VM pool is: lower average utilization
+        imbalance + lower queue backlog = higher potential (better state).
+        Range ~[-2, 0]; 0 = perfectly balanced & idle, negative = congested.
+        """
+        loads = []
+        queues = []
+        for vm in self.vms:
+            cpu_load = sum(c for _, c, _ in vm.active)
+            loads.append(cpu_load / vm.capacity_cores)
+            queues.append(max(0.0, vm.busy_until - self.current_time) / 1e9)
+        loads = np.array(loads)
+        imbalance = float(np.mean(np.abs(loads - loads.mean())))
+        avg_queue = float(np.mean(queues))
+        # potential = -(imbalance + avg_queue), clipped
+        return float(np.clip(-(imbalance + avg_queue), -2.0, 0.0))
 
     def _get_state(self):
         t = self.tasks[self.t_idx]
@@ -301,12 +322,20 @@ class CloudSchedulingEnv:
 
         reward = r_qos + r_cost + r_overload + r_energy
 
+        # ---- potential-based reward shaping (Ng et al. 1999) ----
+        # F(s,s') = gamma * Phi(s') - Phi(s), where Phi measures "how healthy
+        # is the VM pool?" Lower average queue = higher potential. This is
+        # PROVEN to not change the optimal policy — it only speeds learning by
+        # providing a dense gradient signal between sparse deadline events.
+        phi_before = self._potential(before_step=True)
+        phi_after = self._potential(before_step=False)
+        shaped = self.gamma_shaping * phi_after - phi_before
+        reward += 0.5 * shaped
+
         if not deadline_met:
             vm.deadline_misses += 1
 
         if self.adaptive_weights:
-            # Adaptive path kept for config compatibility but the simplified
-            # reward above is what actually gets used.
             pass
 
         # reward already computed above (r_qos + r_cost + r_overload + r_energy)

@@ -31,7 +31,8 @@ env:
 
 # ---- Q-Network -------------------------------------------------------------
 qnetwork:
-  hidden: [128, 64, 32]             # 3 hidden layers (v1 used [64,64])
+  hidden: [128, 64]                 # Dueling backbone: shared layers (was [128,64,32])
+  stream_hidden: 32                 # value + advantage stream width
   lr: 0.0005
   dropout: 0.1                      # dropout on hidden activations (training only)
   grad_clip: 10.0
@@ -62,12 +63,12 @@ agent:
 
 # ---- Training --------------------------------------------------------------
 train:
-  episodes: 150                     # sweet spot: sharpest Q-function (more = overtrained)
+  episodes: 200                     # Dueling DQN converges fast — 200 is the sweet spot
   eval_every: 25
   eval_runs: 3
   # Curriculum: resample tasks_per_episode from this range each episode so the
   # agent sees backlog dynamics across the full eval range.
-  curriculum_range: [150, 400]
+  curriculum_range: [150, 500]
 
 # ---- Evaluation ------------------------------------------------------------
 eval:

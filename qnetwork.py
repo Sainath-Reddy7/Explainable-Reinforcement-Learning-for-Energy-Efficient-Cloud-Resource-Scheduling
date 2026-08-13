@@ -1,18 +1,23 @@
 """
-qnetwork.py — Pure-NumPy MLP Q-function approximator (v2).
+qnetwork.py — Pure-NumPy Dueling DQN Q-network (v3).
 
-Upgrades over v1
-----------------
-* 3 hidden layers (default 128-64-32) instead of 2 (64-64) — more capacity
-  for the richer Borg-backed state.
-* Dropout on hidden activations (training only) — regularizes the small-data
-  regime and improves explanation stability.
-* Running mean/std input normalization (batch-norm-style) — keeps the input
-  distribution stable across episodes with different Borg task mixes, which
-  materially helps gradient quality and therefore Q-value argmax stability.
-* Learning-rate schedule hook consumed by the DQN agent.
-* Exact analytic gradients retained (needed for the gradient-based XAI
-  methods and for the Infidelity trust metric).
+Architecture
+------------
+Shared backbone: input → H1(128) → H2(64)
+  ├── Value stream:     H2 → V(32) → V(1)     "how good is this VM pool state?"
+  └── Advantage stream: H2 → A(32) → A(8)     "how much better is VM i vs average?"
+Final Q(s,a) = V(s) + [A(s,a) - mean_a A(s,a)]
+
+Why Dueling?  When many VMs are similarly good/bad, the advantage stream
+converges near zero and the VALUE stream still learns correctly.  A vanilla
+DQN wastes capacity estimating redundant per-action values; Dueling separates
+the two concerns so the network learns faster and generalizes better.
+
+Also includes:
+  * Running input normalization (batch-norm-style)
+  * Dropout (training only)
+  * N-step-return compatible (caller provides the target)
+  * Exact analytic gradient for XAI methods
 """
 
 from __future__ import annotations
@@ -29,31 +34,48 @@ def relu_grad(x):
 
 
 class QNetwork:
-    """Configurable-depth MLP: input -> H1 -> H2 -> H3 -> linear Q-values."""
+    """Dueling DQN: shared backbone + value stream + advantage stream."""
 
-    def __init__(self, in_dim, out_dim, hidden=(128, 64, 32),
-                 lr=5e-4, dropout=0.1, seed=0):
+    def __init__(self, in_dim, out_dim, hidden=(128, 64),
+                 stream_hidden=32, lr=5e-4, dropout=0.1, seed=0):
         rng = np.random.default_rng(seed)
-        dims = [in_dim, *hidden, out_dim]
-        self.params = []
-        for i in range(len(dims) - 1):
-            fan_in = dims[i]
-            setattr(self, f"W{i+1}",
-                    rng.normal(0, np.sqrt(2 / fan_in), size=(dims[i], dims[i+1])).astype(np.float32))
-            setattr(self, f"b{i+1}", np.zeros(dims[i+1], dtype=np.float32))
-            self.params += [f"W{i+1}", f"b{i+1}"]
-        self.n_layers = len(dims) - 1
+        self.in_dim = in_dim
+        self.out_dim = out_dim
         self.lr = lr
         self.base_lr = lr
         self.dropout = dropout
+
+        # ---- shared backbone: in_dim -> h1 -> h2 ----
+        h1, h2 = hidden
+        self.W1 = rng.normal(0, np.sqrt(2 / in_dim), size=(in_dim, h1)).astype(np.float32)
+        self.b1 = np.zeros(h1, dtype=np.float32)
+        self.W2 = rng.normal(0, np.sqrt(2 / h1), size=(h1, h2)).astype(np.float32)
+        self.b2 = np.zeros(h2, dtype=np.float32)
+        bb_dim = h2  # backbone output dimension
+
+        # ---- value stream: bb_dim -> sv -> 1 ----
+        sh = stream_hidden
+        self.Wv1 = rng.normal(0, np.sqrt(2 / bb_dim), size=(bb_dim, sh)).astype(np.float32)
+        self.bv1 = np.zeros(sh, dtype=np.float32)
+        self.Wv2 = rng.normal(0, np.sqrt(2 / sh), size=(sh, 1)).astype(np.float32)
+        self.bv2 = np.zeros(1, dtype=np.float32)
+
+        # ---- advantage stream: bb_dim -> sa -> out_dim ----
+        self.Wa1 = rng.normal(0, np.sqrt(2 / bb_dim), size=(bb_dim, sh)).astype(np.float32)
+        self.ba1 = np.zeros(sh, dtype=np.float32)
+        self.Wa2 = rng.normal(0, np.sqrt(2 / sh), size=(sh, out_dim)).astype(np.float32)
+        self.ba2 = np.zeros(out_dim, dtype=np.float32)
+
+        self.params = ["W1","b1","W2","b2",
+                        "Wv1","bv1","Wv2","bv2",
+                        "Wa1","ba1","Wa2","ba2"]
         self._init_adam()
 
-        # running normalization stats (Welford-lite, scalar-free)
+        # running normalization stats
         self.run_mean = np.zeros(in_dim, dtype=np.float32)
         self.run_var = np.ones(in_dim, dtype=np.float32)
         self.run_count = 1e-4
 
-    # ---- Adam ---------------------------------------------------------------
     def _init_adam(self):
         self.m = {p: np.zeros_like(getattr(self, p)) for p in self.params}
         self.v = {p: np.zeros_like(getattr(self, p)) for p in self.params}
@@ -63,7 +85,6 @@ class QNetwork:
     def set_lr(self, lr):
         self.lr = lr
 
-    # ---- normalization ------------------------------------------------------
     def _normalize(self, x, update_stats=False):
         if update_stats:
             batch_mean = x.mean(axis=0)
@@ -83,56 +104,99 @@ class QNetwork:
         if single:
             x = x[None, :]
         x_norm = self._normalize(x, update_stats=train)
-        acts = [x_norm]
-        zs = []
-        a = x_norm
-        rng = np.random.default_rng(0)  # deterministic given seed; agent overrides if needed
-        for i in range(1, self.n_layers + 1):
-            W = getattr(self, f"W{i}")
-            b = getattr(self, f"b{i}")
-            z = a @ W + b
-            zs.append(z)
-            if i < self.n_layers:
-                a = relu(z)
-                if train and self.dropout > 0:
-                    mask = (rng.random(a.shape) > self.dropout).astype(np.float32) / (1 - self.dropout)
-                    a = a * mask
-                acts.append(a)
-            else:
-                acts.append(z)  # linear output
-        out = acts[-1]
+
+        # shared backbone
+        z1 = x_norm @ self.W1 + self.b1
+        a1 = relu(z1)
+        z2 = a1 @ self.W2 + self.b2
+        a2 = relu(z2)   # backbone output (batch, h2)
+
+        if train and self.dropout > 0:
+            rng = np.random.default_rng(self.t if self.t > 0 else 0)
+            mask = (rng.random(a2.shape) > self.dropout).astype(np.float32) / (1 - self.dropout)
+            a2 = a2 * mask
+
+        # value stream
+        zv1 = a2 @ self.Wv1 + self.bv1
+        av1 = relu(zv1)
+        v = av1 @ self.Wv2 + self.bv2       # (batch, 1)
+
+        # advantage stream
+        za1 = a2 @ self.Wa1 + self.ba1
+        aa1 = relu(za1)
+        adv = aa1 @ self.Wa2 + self.ba2      # (batch, out_dim)
+
+        # dueling combine: Q = V + (A - mean(A))
+        adv_mean = adv.mean(axis=1, keepdims=True)
+        out = v + adv - adv_mean              # (batch, out_dim)
+
         if cache:
-            return out, (acts, zs, x_norm)
+            cache_dict = {
+                "x_norm": x_norm, "z1": z1, "a1": a1, "z2": z2, "a2": a2,
+                "zv1": zv1, "av1": av1, "v": v,
+                "za1": za1, "aa1": aa1, "adv": adv, "adv_mean": adv_mean,
+                "out": out,
+            }
+            return out, cache_dict
         return out[0] if single else out
 
     def predict(self, x):
-        """Single or batch forward, inference mode (no dropout, no stat update)."""
-        out = self.forward(x, cache=False, train=False)
-        return out
+        return self.forward(x, cache=False, train=False)
 
     # ---- backward + update --------------------------------------------------
     def train_step(self, states, actions, targets, grad_clip=10.0):
         batch = states.shape[0]
-        out, (acts, zs, x_norm) = self.forward(states, cache=True, train=True)
+        out, c = self.forward(states, cache=True, train=True)
 
         pred_q = out[np.arange(batch), actions]
         td_error = pred_q - targets
 
+        # gradient of MSE loss w.r.t. output
         dout = np.zeros_like(out)
         dout[np.arange(batch), actions] = 2.0 * td_error / batch
 
-        grads = {}
-        # backprop through each layer
-        da = dout
-        for i in range(self.n_layers, 0, -1):
-            W = getattr(self, f"W{i}")
-            a_prev = acts[i - 1]
-            grads[f"W{i}"] = a_prev.T @ da
-            grads[f"b{i}"] = da.sum(axis=0)
-            if i > 1:
-                da = (da @ W.T) * relu_grad(zs[i - 2])
-        # gradient w.r.t. normalized input (used by XAI)
-        grads["dx_norm"] = da @ getattr(self, "W1").T if "W1" in grads else None
+        # ---- backprop through dueling combine ----
+        # out = V + adv - adv_mean
+        # dQ/dV = 1,  dQ/dadv_i = (1 - 1/n) for chosen action, -1/n for others
+        # but dout already encodes which action, so:
+        #   dV = sum_a dout[:,a]  (since V adds to all)
+        #   dadv = dout - sum_a dout[:,a] / n   (because of the -mean term)
+        dV = dout.sum(axis=1, keepdims=True)          # (batch, 1)
+        dAdv = dout - dout.sum(axis=1, keepdims=True) / self.out_dim  # (batch, out_dim)
+
+        # value stream backprop: V = av1 @ Wv2 + bv2
+        dWv2 = c["av1"].T @ dV
+        dbv2 = dV.sum(axis=0)
+        dav1 = dV @ self.Wv2.T
+        dzv1 = dav1 * relu_grad(c["zv1"])
+        dWv1 = c["a2"].T @ dzv1
+        dbv1 = dzv1.sum(axis=0)
+        da2_from_v = dzv1 @ self.Wv1.T    # (batch, h2)
+
+        # advantage stream backprop
+        dWa2 = c["aa1"].T @ dAdv
+        dba2 = dAdv.sum(axis=0)
+        daa1 = dAdv @ self.Wa2.T
+        dza1 = daa1 * relu_grad(c["za1"])
+        dWa1 = c["a2"].T @ dza1
+        dba1 = dza1.sum(axis=0)
+        da2_from_a = dza1 @ self.Wa1.T    # (batch, h2)
+
+        # combine gradients into shared backbone
+        da2 = da2_from_v + da2_from_a
+        dz2 = da2 * relu_grad(c["z2"])
+        dW2 = c["a1"].T @ dz2
+        db2 = dz2.sum(axis=0)
+        da1 = dz2 @ self.W2.T
+        dz1 = da1 * relu_grad(c["z1"])
+        dW1 = c["x_norm"].T @ dz1
+        db1 = dz1.sum(axis=0)
+
+        grads = {
+            "W1": dW1, "b1": db1, "W2": dW2, "b2": db2,
+            "Wv1": dWv1, "bv1": dbv1, "Wv2": dWv2, "bv2": dbv2,
+            "Wa1": dWa1, "ba1": dba1, "Wa2": dWa2, "ba2": dba2,
+        }
         self._adam_update(grads, grad_clip)
         return float(np.mean(td_error ** 2))
 
@@ -147,6 +211,43 @@ class QNetwork:
             update = self.lr * m_hat / (np.sqrt(v_hat) + self.eps)
             setattr(self, p, getattr(self, p) - update)
 
+    # ---- weighted train step (for PER) --------------------------------------
+    def weighted_train_step(self, states, actions, targets, ws, grad_clip=10.0):
+        """Same as train_step but with per-sample importance weights (for PER)."""
+        batch = states.shape[0]
+        out, c = self.forward(states, cache=True, train=True)
+
+        pred_q = out[np.arange(batch), actions]
+        td_error = pred_q - targets
+
+        dout = np.zeros_like(out)
+        dout[np.arange(batch), actions] = 2.0 * (ws * td_error) / batch
+
+        dV = dout.sum(axis=1, keepdims=True)
+        dAdv = dout - dout.sum(axis=1, keepdims=True) / self.out_dim
+
+        dWv2 = c["av1"].T @ dV; dbv2 = dV.sum(axis=0)
+        dav1 = dV @ self.Wv2.T; dzv1 = dav1 * relu_grad(c["zv1"])
+        dWv1 = c["a2"].T @ dzv1; dbv1 = dzv1.sum(axis=0)
+        da2_from_v = dzv1 @ self.Wv1.T
+
+        dWa2 = c["aa1"].T @ dAdv; dba2 = dAdv.sum(axis=0)
+        daa1 = dAdv @ self.Wa2.T; dza1 = daa1 * relu_grad(c["za1"])
+        dWa1 = c["a2"].T @ dza1; dba1 = dza1.sum(axis=0)
+        da2_from_a = dza1 @ self.Wa1.T
+
+        da2 = da2_from_v + da2_from_a
+        dz2 = da2 * relu_grad(c["z2"])
+        dW2 = c["a1"].T @ dz2; db2 = dz2.sum(axis=0)
+        da1 = dz2 @ self.W2.T; dz1 = da1 * relu_grad(c["z1"])
+        dW1 = c["x_norm"].T @ dz1; db1 = dz1.sum(axis=0)
+
+        grads = {"W1": dW1, "b1": db1, "W2": dW2, "b2": db2,
+                 "Wv1": dWv1, "bv1": dbv1, "Wv2": dWv2, "bv2": dbv2,
+                 "Wa1": dWa1, "ba1": dba1, "Wa2": dWa2, "ba2": dba2}
+        self._adam_update(grads, grad_clip)
+        return float(np.mean(ws * td_error ** 2))
+
     # ---- weight sync --------------------------------------------------------
     def get_weights(self):
         return {p: getattr(self, p).copy() for p in self.params}
@@ -156,24 +257,33 @@ class QNetwork:
             setattr(self, p, weights[p].copy())
 
     def soft_update(self, other, tau):
-        """Polyak averaging: theta <- tau*theta_other + (1-tau)*theta_self."""
         for p in self.params:
             cur = getattr(self, p)
             new = tau * getattr(other, p) + (1 - tau) * cur
             setattr(self, p, new.astype(np.float32))
 
     def input_gradient(self, instance, action_idx):
-        """Exact dQ(s,a)/ds at an instance — used by Grad×Input and Infidelity."""
+        """Exact dQ(s,a)/ds at an instance — for Grad×Input and Infidelity."""
         x = np.asarray(instance, dtype=np.float32)[None, :]
-        out, (acts, zs, x_norm) = self.forward(x, cache=True, train=False)
+        out, c = self.forward(x, cache=True, train=False)
         d_out = np.zeros_like(out)
         d_out[0, action_idx] = 1.0
-        da = d_out
-        for i in range(self.n_layers, 0, -1):
-            W = getattr(self, f"W{i}")
-            if i > 1:
-                da = (da @ W.T) * relu_grad(zs[i - 2])
-        grad_norm = da @ getattr(self, "W1").T
-        # chain through normalization: d/dx = (1/std) * d/dx_norm
+
+        # backprop through dueling combine
+        dV = d_out.sum(axis=1, keepdims=True)
+        dAdv = d_out - d_out.sum(axis=1, keepdims=True) / self.out_dim
+
+        dav1 = dV @ self.Wv2.T; dzv1 = dav1 * relu_grad(c["zv1"])
+        da2_v = dzv1 @ self.Wv1.T
+
+        daa1 = dAdv @ self.Wa2.T; dza1 = daa1 * relu_grad(c["za1"])
+        da2_a = dza1 @ self.Wa1.T
+
+        da2 = da2_v + da2_a
+        dz2 = da2 * relu_grad(c["z2"])
+        da1 = dz2 @ self.W2.T
+        dz1 = da1 * relu_grad(c["z1"])
+        grad_norm = dz1 @ self.W1.T
+
         std = np.sqrt(self.run_var + 1e-8)
         return (grad_norm / std)[0]

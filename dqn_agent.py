@@ -187,9 +187,9 @@ class DQNAgent:
         self.beta_anneal_steps = max(beta_anneal_steps, 1)
         self.beta = beta_start
 
-        self.q = QNetwork(state_dim, action_dim, hidden=hidden, lr=lr,
+        self.q = QNetwork(state_dim, action_dim, hidden=hidden[:2], lr=lr,
                           dropout=dropout, seed=seed)
-        self.target_q = QNetwork(state_dim, action_dim, hidden=hidden, lr=lr,
+        self.target_q = QNetwork(state_dim, action_dim, hidden=hidden[:2], lr=lr,
                                  dropout=dropout, seed=seed + 1)
         self.target_q.set_weights(self.q.get_weights())
         # match normalization stats
@@ -254,22 +254,5 @@ class DQNAgent:
         return loss
 
     def _weighted_train_step(self, states, actions, targets, ws):
-        """MSE with per-sample importance weights, then average."""
-        batch = states.shape[0]
-        out, (acts, zs, x_norm) = self.q.forward(states, cache=True, train=True)
-        pred_q = out[np.arange(batch), actions]
-        td_error = pred_q - targets
-        dout = np.zeros_like(out)
-        dout[np.arange(batch), actions] = 2.0 * (ws * td_error) / batch
-        # reuse the network's Adam by building grads manually
-        grads = {}
-        da = dout
-        for i in range(self.q.n_layers, 0, -1):
-            W = getattr(self.q, f"W{i}")
-            a_prev = acts[i - 1]
-            grads[f"W{i}"] = a_prev.T @ da
-            grads[f"b{i}"] = da.sum(axis=0)
-            if i > 1:
-                da = (da @ W.T) * (zs[i - 2] > 0).astype(zs[i - 2].dtype)
-        self.q._adam_update(grads, self.q.dropout)  # grad_clip folded via existing path
-        return float(np.mean(ws * td_error ** 2))
+        """Delegate to the Dueling QNetwork's weighted_train_step."""
+        return self.q.weighted_train_step(states, actions, targets, ws)

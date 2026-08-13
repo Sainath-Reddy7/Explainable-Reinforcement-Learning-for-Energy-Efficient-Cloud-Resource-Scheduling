@@ -4,7 +4,7 @@
 
 ### Explainable Reinforcement Learning for Energy-Efficient Cloud Resource Scheduling
 
-A **Double DQN** cloud-edge task scheduler with a mathematically audited **Explainable AI** layer — trained on **real Google Borg cluster traces**, built entirely in **pure NumPy**.
+A **Dueling Double DQN** cloud-edge task scheduler with potential-based reward shaping and a mathematically audited **Explainable AI** layer — trained on **real Google Borg cluster traces**, built entirely in **pure NumPy**.
 
 </div>
 
@@ -58,7 +58,7 @@ This project reproduces and extends the base paper by Yu et al. (Scientific Repo
 | **Base Paper** | Yu et al., *Dynamic multi-objective task scheduling in cloud computing using RL*, Sci. Rep. 2025 |
 | **Dataset** | Google Borg cluster traces — 328 MB, 405,894 real task events |
 | **Implementation** | 100% pure NumPy (no PyTorch / TensorFlow) |
-| **DQN** | Double DQN + Prioritized Experience Replay (SumTree) + soft Polyak updates |
+| **DQN** | Dueling Double DQN + Prioritized Experience Replay (SumTree) + soft Polyak updates + potential-based reward shaping |
 | **Explainability** | 4 methods: KernelSHAP · Gradient×Input · Occlusion · Integrated Gradients |
 | **Trust Audit** | 6 metrics: Deletion-AOPC · Insertion-AOPC · Top-K Fidelity · Consistency · Infidelity · Stability |
 
@@ -110,13 +110,16 @@ This project reproduces and extends the base paper by Yu et al. (Scientific Repo
 
 | Scheduler | Makespan (s) ↓ | Cost ($) ↓ | Energy (Wh) ↓ | Miss Rate ↓ | Imbalance ↓ |
 |---|---|---|---|---|---|
-| Min-Min | **1,194** | 31,693 | 4,744 | **0.0%** 🟢 | 4.37 |
-| Greedy-Least-Loaded | 1,257 | 41,725 | 4,466 | 0.1% | **2.88** |
+| Min-Min | **1,194** 🟢 | 31,693 | 4,744 | **0.0%** 🟢 | 4.37 |
+| Max-Min | **1,194** 🟢 | 44,703 | 5,355 | **0.0%** 🟢 | **1.62** |
+| **DQN (ours)** | **1,221** 🟢 | 38,129 | 4,598 | **1.2%** | **2.03** |
+| Greedy-Least-Loaded | 1,257 | 41,725 | 4,466 | 0.1% | 2.88 |
+| FCFS | 1,633 | 39,149 | **4,122** | 4.6% | 6.04 |
+| RoundRobin | 1,633 | 39,149 | **4,122** | 4.6% | 6.04 |
 | PSO | 3,005 | **9,615** 🟢 | **4,085** | 42.1% 🔴 | 25.16 |
-| **DQN (ours)** | 2,957 | 39,277 | 4,487 | 31.7% | 15.31 |
-| Q-learning | 4,482 | 25,446 | **2,654** 🟢 | 37.2% | 28.02 |
+| Q-learning | 4,002 | 31,731 | **3,185** | 31.2% 🔴 | 23.43 |
 
-> **No single scheduler dominates.** PSO is cheapest but catastrophically misses 42% of deadlines. Min-Min hits zero misses but at 3× the cost. The DQN occupies a genuine **multi-objective middle ground** — exactly the trade-off cloud providers face in production.
+> **The Dueling DQN ranks #3 on makespan, #2 on load balance, and #4 on miss rate** — competitive with the best heuristics while maintaining a genuine multi-objective trade-off. At 1000 tasks it achieves only **0.3% miss rate** (vs Min-Min's 0.0% and PSO's 49.4%), proving it scales.
 
 ---
 
@@ -124,10 +127,10 @@ This project reproduces and extends the base paper by Yu et al. (Scientific Repo
 
 | Method | Deletion AOPC ↑ | Insertion AOPC ↑ | Top-10 Fidelity | Consistency ↑ | Infidelity ↓ | Latency |
 |---|---|---|---|---|---|---|
-| **Occlusion** 🥇 | **0.898** | **1.099** | **53%** | 0.697 | 8.83 | 2.7 ms |
-| **KernelSHAP** 🥈 | **0.806** | **1.041** | 45% | 0.280 | 10.30 | 50.9 ms |
-| Integrated Gradients | 0.074 | 0.192 | 33% | 0.153 | 8.76 | 4.8 ms |
-| Gradient×Input ⚡ | 0.041 | 0.174 | 33% | **0.9998** | **4.67** | **0.15 ms** |
+| **Occlusion** 🥇 | **0.727** | **0.569** | **57%** | 0.833 | — | 2.7 ms |
+| **KernelSHAP** 🥈 | **0.563** | **0.529** | 48% | 0.341 | — | 50.9 ms |
+| Integrated Gradients | 0.399 | 0.312 | 45% | 0.776 | — | 4.8 ms |
+| Gradient×Input ⚡ | 0.381 | 0.281 | 45% | **0.962** | — | **0.15 ms** |
 
 > **Key finding:** Occlusion & KernelSHAP are most **faithful** (removing their top features collapses the decision), while Gradient×Input is **340× faster** and most stable — but less faithful. **No single method dominates.** This trade-off is the project's central citable result.
 

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-08-13T15:51:51.961242",
+  "timestamp": "2026-08-13T16:45:06.013161",
   "seed": 0,
   "python": "3.13.3",
   "platform": "Windows-11-10.0.26200-SP0",
@@ -26,9 +26,9 @@
     "qnetwork": {
       "hidden": [
         128,
-        64,
-        32
+        64
       ],
+      "stream_hidden": 32,
       "lr": 0.0005,
       "dropout": 0.1,
       "grad_clip": 10.0
@@ -53,12 +53,12 @@
       "lr_decay_rate": 0.95
     },
     "train": {
-      "episodes": 150,
+      "episodes": 200,
       "eval_every": 25,
       "eval_runs": 3,
       "curriculum_range": [
         150,
-        400
+        500
       ]
     },
     "eval": {
@@ -114,5 +114,5 @@
     "coll_type_std": 0.3185386061668396,
     "n_tasks": 5000
   },
-  "total_runtime_sec": 215.86745810508728
+  "total_runtime_sec": 301.7309286594391
 }
