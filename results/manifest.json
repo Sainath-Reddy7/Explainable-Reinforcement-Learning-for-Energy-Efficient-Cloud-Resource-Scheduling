@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-08-12T20:39:37.747657",
+  "timestamp": "2026-08-13T15:51:51.961242",
   "seed": 0,
   "python": "3.13.3",
   "platform": "Windows-11-10.0.26200-SP0",
@@ -114,5 +114,5 @@
     "coll_type_std": 0.3185386061668396,
     "n_tasks": 5000
   },
-  "total_runtime_sec": 208.14603638648987
+  "total_runtime_sec": 215.86745810508728
 }

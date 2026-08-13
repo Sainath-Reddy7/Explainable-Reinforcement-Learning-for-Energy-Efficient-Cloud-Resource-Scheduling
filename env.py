@@ -266,54 +266,54 @@ class CloudSchedulingEnv:
         deadline_met = finish <= t.deadline
         overrun = max(0.0, (finish - t.deadline) / max(dur_us, 1e-6))
 
-        # ---- reward components ---------------------------------------------
-        f_energy = float(np.clip(power / 300.0, 0, 1))
-        f_cost = float(np.clip(vm.cost_per_sec / 0.6, 0, 1))
-        # STRONG deadline signal: big flat bonus for meeting, steep penalty for missing
-        if deadline_met:
-            f_qos = 1.0
-        else:
-            f_qos = -1.0 - float(np.clip(overrun, 0, 2.0))  # -1 floor + overrun penalty
-        f_wait = float(np.log1p(max(0.0, wait_s)) / np.log1p(300.0))
-
-        loads = np.array([sum(c for _, c, _ in v.active) / v.capacity_cores for v in self.vms])
-        mean_load = loads.mean()
-        imbalance = float(np.mean(np.abs(loads - mean_load)))
-        f_balance = float(np.clip(imbalance, 0, 1))
-
+        # ---- reward (SIMPLIFIED: QoS dominates, cost secondary) ------------
+        # The multi-objective reward with 5 competing terms was diluting the
+        # learning signal. QoS (deadlines) is now DOMINANT — a miss is a
+        # catastrophic -10; a meet is +1 + cost efficiency bonus. This makes
+        # the gradient point sharply toward "spread load to meet deadlines."
         prio_weight = 0.5 + 0.5 * (t.priority / self.PRIORITY_MAX)
+
+        # QoS: dominant signal
+        if deadline_met:
+            r_qos = 2.0 * prio_weight                # +1 to +2 for meeting deadline
+        else:
+            r_qos = -10.0 * (1.0 + min(overrun, 2.0))  # -10 to -30 for missing
+
+        # Cost: small efficiency bonus (cheaper VM = slightly better)
+        # normalized so it's ~±0.3, never overpowering QoS
+        r_cost = -0.5 * float(np.clip(vm.cost_per_sec / 0.6, 0, 1))
+
+        # Overload penalty: discourage piling onto an already-saturated VM.
+        # This is the KEY term that teaches the DQN to spread load. The penalty
+        # starts at 50% capacity utilization (not 100%) so the agent learns to
+        # spread BEFORE saturation, and grows quadratically to make overload
+        # genuinely painful.
+        util_frac_post = new_load / vm.capacity_cores
+        if util_frac_post > 0.5:
+            excess = (util_frac_post - 0.5) / 0.5   # 0 at 50%, 1 at 100%, 2 at 150%
+            r_overload = -8.0 * excess ** 2          # quadratic: -0, -2, -8, -18, -32
+        else:
+            r_overload = 0.0
+
+        # Energy: tiny term so it doesn't dominate
+        f_energy = float(np.clip(power / 300.0, 0, 1))
+        r_energy = -0.2 * f_energy
+
+        reward = r_qos + r_cost + r_overload + r_energy
+
         if not deadline_met:
             vm.deadline_misses += 1
 
         if self.adaptive_weights:
-            # Stable adaptive weighting: track rolling objective magnitudes but
-            # clamp weight shifts to avoid the oscillation that destabilized
-            # earlier versions. QoS (deadlines) gets a strong fixed floor.
-            for k, v in zip(("energy", "cost", "qos", "wait", "balance"),
-                            (f_energy, f_cost, -f_qos, f_wait, f_balance)):
-                self._rolling[k] = 0.9 * self._rolling[k] + 0.1 * max(abs(v), 1e-3)
-            raw = np.array([self._rolling["energy"], self._rolling["cost"],
-                            self._rolling["qos"], self._rolling["wait"],
-                            self._rolling["balance"]])
-            w = raw / raw.sum()
-            # QoS floor: never let deadline weight drop below 0.30
-            if w[2] < 0.30:
-                w *= (1 - 0.30) / (1 - w[2])
-                w[2] = 0.30
-            w1, w2, w3, w4, w5 = w
-        else:
-            # Fixed weights — tuned for stable learning on Borg workloads.
-            # QoS dominates (deadlines matter most), then cost, then balance.
-            w1, w2, w3, w4, w5 = 0.10, 0.20, 0.35, 0.15, 0.20
+            # Adaptive path kept for config compatibility but the simplified
+            # reward above is what actually gets used.
+            pass
 
-        # ---- combined reward (scaled up for strong learning signal) --------
-        # The reward magnitude is intentionally large (~±10) so the TD target
-        # dominates the Q-value scale and the network learns real preferences.
-        reward = (-(w1 * f_energy) - (w2 * f_cost)
-                  + (w3 * f_qos * prio_weight * 3.0)    # QoS dominates, 3x amplified
-                  - (w4 * f_wait)
-                  - (w5 * f_balance * 4.0))             # balance strongly penalized
-        reward *= 5.0   # global scale so reward ~ ±10-25
+        # reward already computed above (r_qos + r_cost + r_overload + r_energy)
+
+        # compute imbalance for metrics/info (not used in reward anymore)
+        loads = np.array([sum(c for _, c, _ in v.active) / v.capacity_cores for v in self.vms])
+        imbalance = float(np.mean(np.abs(loads - loads.mean())))
 
         info = {
             "exec_time_s": dur_s, "energy_wh": energy_wh, "cost": cost,
