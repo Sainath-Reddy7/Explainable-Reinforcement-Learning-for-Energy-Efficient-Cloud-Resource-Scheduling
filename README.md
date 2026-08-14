@@ -188,7 +188,9 @@ The pipeline flows through **6 interconnected phases**, transforming raw Borg tr
   <img src="results/architecture_diagram.png" alt="Dueling Double-DQN architecture" width="95%">
 </p>
 
-*(High-resolution version: `results/architecture_diagram.png` — regenerated anytime with `python plot_architecture.py`)*
+**Figure 1 | Explainable Dueling Double-DQN scheduler.** **a**, State–action value network: a 45-dimensional state (5 task + 40 VM features) feeds a shared backbone that splits into value and advantage streams, combined as *Q* = *V* + (*A* − *Ā*). **b**, Masked dispatch: a state-derived safety mask excludes VMs above 90% utilization before argmax (example state — VM₅ has the highest *Q* but is saturated). **c**, Training: prioritized experience replay (SumTree) with double targets and soft synchronization. **d**, Every dispatch decision is explained by four attribution methods and audited by six trust metrics (bars show measured deletion AOPC from 60 audited decisions).
+
+*Vector versions for submission: `results/fig1_architecture.pdf` / `.svg` (183 mm double-column); regenerate with `python plot_architecture.py`.*
 
 <div align="center">
 

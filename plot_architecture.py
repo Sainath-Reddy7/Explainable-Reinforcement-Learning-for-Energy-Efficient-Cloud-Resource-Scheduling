@@ -1,275 +1,304 @@
 """
-plot_architecture.py — Journal-style architecture figure (Nature/NeurIPS look):
-isometric layer slabs, muted palette, thin arrows, lettered panels (a)(b)(c).
--> results/architecture_diagram.png
+plot_architecture.py — Publication-format architecture figure.
+
+Format targets (Nature / Nature Machine Intelligence style):
+  * double-column width, 183 mm (7.2 in), vector PDF + SVG + 300 dpi PNG
+  * NPG colour palette, muted tints, hairline strokes (0.6-1.0 pt)
+  * print-calibrated type: panel letters 9 pt bold, labels 6-7.5 pt
+  * no internal figure title (caption lives in the manuscript)
+  * panels:  a network · b masked dispatch · c training · d XAI audit
+Outputs: results/fig1_architecture.{pdf,svg,png} and results/architecture_diagram.png
 """
 from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyArrowPatch, Rectangle, Circle, Polygon
+from matplotlib.patches import (FancyArrowPatch, Rectangle, Circle, Polygon)
 
 HERE = Path(__file__).parent
-OUT = HERE / "results" / "architecture_diagram.png"
+R = HERE / "results"
+R.mkdir(exist_ok=True)
 
-# ---- journal palette (muted pastels, dark inks) ----
-INK      = "#1A1A1A"
-MUTED    = "#5B6770"
-SLATE_F  = "#D9E2EC"; SLATE_E = "#425466"
-TEAL_F   = "#CFE4E6"; TEAL_E  = "#31707A"
-PURP_F   = "#E3DBEC"; PURP_E  = "#6A5486"
-ORNG_F   = "#F7E0D2"; ORNG_E  = "#B35F3C"
-GRN_F    = "#D9EBD4"; GRN_E   = "#4E7A45"
-GREY_F   = "#EFF1F3"; GREY_E  = "#8A97A0"
+# ---------------- Nature (NPG) palette ----------------
+INK   = "#1A1A1A"
+GREY  = "#6E7680"
+BLUE, BLUE_T  = "#3C5488", "#D5DCEA"   # structure / backbone
+RED,  RED_T   = "#E64B35", "#F8D9D4"   # risk / mask
+GREEN, GREEN_T= "#00A087", "#D2ECE7"   # chosen action / positive
+CYAN,  CYAN_T = "#4DBBD5", "#DCEEF4"   # value stream
+PURP,  PURP_T = "#8491B4", "#E4E1EC"   # advantage stream
+ORNG,  ORNG_T = "#F39B7F", "#FBE9E0"   # reward / audit
 
 plt.rcParams.update({
     "font.family": "sans-serif",
     "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
     "mathtext.fontset": "stix",
+    "pdf.fonttype": 42,          # editable text in PDF (journal requirement)
+    "ps.fonttype": 42,
+    "svg.fonttype": "none",
 })
 
-fig = plt.figure(figsize=(16, 9.0), facecolor="white")
-gs = fig.add_gridspec(2, 2, width_ratios=[1.65, 1], height_ratios=[1, 1],
-                      left=0.03, right=0.985, top=0.90, bottom=0.045,
-                      wspace=0.13, hspace=0.24)
-axA = fig.add_subplot(gs[:, 0])
-axB = fig.add_subplot(gs[0, 1])
-axC = fig.add_subplot(gs[1, 1])
+FIG_W, FIG_H = 183 / 25.4, 133 / 25.4      # 183 mm x 133 mm
 
-fig.suptitle("RL-MOTS-XAI v2: explainable Dueling Double-DQN scheduler for cloud resource allocation",
-             fontsize=15.5, fontweight="bold", color=INK, y=0.965)
-fig.text(0.5, 0.925,
-         "Trained on Google Borg production traces (328 MB, 405k events); every dispatch decision is explained by four attribution methods and audited by six trust metrics.",
-         ha="center", fontsize=10, color=MUTED, style="italic")
-
-for ax in (axA, axB, axC):
-    ax.axis("off")
+fig = plt.figure(figsize=(FIG_W, FIG_H), facecolor="white")
+gs = fig.add_gridspec(2, 2, width_ratios=[1.5, 1.05], height_ratios=[1, 1],
+                      left=0.022, right=0.982, top=0.965, bottom=0.03,
+                      wspace=0.10, hspace=0.16)
+axA = fig.add_subplot(gs[0, 0]); axB = fig.add_subplot(gs[0, 1])
+axC = fig.add_subplot(gs[1, 0]); axD = fig.add_subplot(gs[1, 1])
+for ax in (axA, axB, axC, axD):
+    ax.set_xlim(0, 100); ax.set_ylim(0, 100); ax.axis("off")
 
 
-def panel(ax, letter, title):
-    ax.text(0.01, 0.985, f"({letter})", transform=ax.transAxes,
-            fontsize=15, fontweight="bold", color=INK, va="top")
-    ax.text(0.048, 0.985, title, transform=ax.transAxes,
-            fontsize=11.5, fontweight="bold", color=INK, va="top")
+def panel_letter(ax, letter):
+    ax.text(-0.02, 1.04, letter, transform=ax.transAxes, fontsize=9.5,
+            fontweight="bold", color=INK, va="bottom", ha="left")
 
 
-def tarrow(ax, x1, y1, x2, y2, color=INK, lw=1.1, ls="-", ms=9):
+def ptitle(ax, text):
+    ax.text(0.0, 1.012, text, transform=ax.transAxes, fontsize=6.8,
+            fontweight="bold", color=INK, va="bottom", ha="left")
+
+
+def arr(ax, x1, y1, x2, y2, color=INK, lw=0.7, ls="-", ms=6):
     ax.add_patch(FancyArrowPatch((x1, y1), (x2, y2), arrowstyle="-|>",
                  mutation_scale=ms, color=color, lw=lw, linestyle=ls,
-                 shrinkA=1, shrinkB=1, zorder=5))
+                 shrinkA=0.5, shrinkB=0.5, zorder=6))
 
 
-def mbox(ax, x, y, w, h, text, fc, ec, fs=8.6, sub=None, sub_fs=7.4):
-    ax.add_patch(Rectangle((x, y), w, h, fc=fc, ec=ec, lw=1.2))
-    if sub:
-        ax.text(x + w / 2, y + h * 0.64, text, ha="center", va="center",
-                fontsize=fs, color=INK, fontweight="bold")
-        ax.text(x + w / 2, y + h * 0.26, sub, ha="center", va="center",
-                fontsize=sub_fs, color=MUTED, style="italic")
-    else:
-        ax.text(x + w / 2, y + h / 2, text, ha="center", va="center",
-                fontsize=fs, color=INK, fontweight="bold")
+def box(ax, x, y, w, h, fc, ec, lw=0.8, ls="-"):
+    ax.add_patch(Rectangle((x, y), w, h, fc=fc, ec=ec, lw=lw, linestyle=ls, zorder=3))
 
 
-# ================================================================== #
-# (a) NETWORK — isometric slabs                                      #
-# ================================================================== #
-panel(axA, "a", "Dueling Double-DQN with state-derived safety mask")
-
-DX, DY = 4.2, 2.2
+def blabel(ax, x, y, text, fs=6.2, color=INK, ha="center", va="center",
+           style="normal", weight="normal"):
+    ax.text(x, y, text, fontsize=fs, color=color, ha=ha, va=va,
+            style=style, fontweight=weight, zorder=8)
 
 
-def slab(ax, x, y, w, h, fc, ec):
+# ================================================================= #
+# PANEL a — network architecture (isometric slabs, flat tints)      #
+# ================================================================= #
+panel_letter(axA, "a")
+ptitle(axA, "Dueling Double-DQN state–action value network")
+
+DX, DY = 2.4, 1.2
+BASE = 26
+
+
+def slab(ax, x, w, h, tint, edge):
+    y = BASE
     ax.add_patch(Polygon([(x, y), (x + w, y), (x + w, y + h), (x, y + h)],
-                         closed=True, fc=fc, ec=ec, lw=1.3, zorder=3))
+                         closed=True, fc=tint, ec=edge, lw=0.9, zorder=4))
     ax.add_patch(Polygon([(x, y + h), (x + w, y + h),
                           (x + w + DX, y + h + DY), (x + DX, y + h + DY)],
-                         closed=True, fc=fc, ec=ec, lw=0.9, alpha=0.75, zorder=2))
+                         closed=True, fc=tint, ec=edge, lw=0.6, alpha=0.55, zorder=3))
     ax.add_patch(Polygon([(x + w, y), (x + w + DX, y + DY),
                           (x + w + DX, y + h + DY), (x + w, y + h)],
-                         closed=True, fc=fc, ec=ec, lw=0.9, alpha=0.55, zorder=2))
+                         closed=True, fc=tint, ec=edge, lw=0.6, alpha=0.4, zorder=3))
 
 
-BASE, SW = 30, 6.4
-xs  = [4, 16, 28]
-hs  = [16, 34, 22]
-dims = ["45", "128", "64"]
+SW = 8
+# input: stacked segments 5 (task) + 40 (VM)
+ix, iw = 5, 6.2
+box(axA, ix, BASE, iw, 2.8, ORNG_T, ORNG)             # 5 task features
+box(axA, ix, BASE + 3.2, iw, 18.5, BLUE_T, BLUE)      # 40 VM features
+blabel(axA, ix + iw / 2, BASE + 26.6, "45", 7, INK, weight="bold")
+blabel(axA, ix + iw / 2, BASE - 3.6, "state $s_t$", 6, INK)
+blabel(axA, ix + iw / 2, BASE - 8.6, "5 task + 40 VM", 5.2, GREY, style="italic")
 
-axA.add_patch(Rectangle((14.2, BASE - 4), 22.5, 46, fc="#F7F9FB", ec=GREY_E,
-                        lw=0.8, ls=(0, (4, 3)), zorder=1))
-axA.text(25.4, BASE + 44.8, "shared backbone", ha="center", fontsize=9,
-         color=MUTED, style="italic")
+# backbone
+box(axA, 20.5, BASE - 2.5, 22.5, 41.5, "#F6F8FA", GREY, lw=0.5, ls=(0, (3, 2.2)))
+blabel(axA, 31.7, BASE + 41.8, "shared backbone", 5.8, GREY, style="italic")
+slab(axA, 21.5, SW, 33, BLUE_T, BLUE)      # 128
+blabel(axA, 21.5 + SW / 2, BASE + 36.6, "128", 6.5, INK, weight="bold")
+slab(axA, 33.5, SW, 23, BLUE_T, BLUE)      # 64
+blabel(axA, 33.5 + SW / 2, BASE + 26.6, "64", 6.5, INK, weight="bold")
+arr(axA, ix + iw + 0.5, BASE + 10, 20.9, BASE + 14)
+arr(axA, 21.5 + SW + 0.6, BASE + 16, 32.9, BASE + 11)
 
-slab(axA, xs[0], BASE, SW, hs[0], GREY_F, SLATE_E)
-slab(axA, xs[1], BASE, SW, hs[1], SLATE_F, SLATE_E)
-slab(axA, xs[2], BASE, SW, hs[2], SLATE_F, SLATE_E)
-for x, h, d in zip(xs, hs, dims):
-    axA.text(x + SW / 2, BASE + h + 3.6, d, ha="center", fontsize=10,
-             color=INK, fontweight="bold")
-axA.text(xs[0] + SW / 2, BASE - 3.4, "$s_t\\in\\mathbb{R}^{45}$", ha="center",
-         fontsize=9, color=INK)
-axA.text(xs[0] + SW / 2, BASE - 8.0, "5 task + 40 VM features", ha="center",
-         fontsize=8, color=MUTED, style="italic")
-tarrow(axA, xs[0] + SW + 0.4, BASE + 8, xs[1] - 0.4, BASE + 17, lw=0.9)
-tarrow(axA, xs[1] + SW + 0.4, BASE + 17, xs[2] - 0.4, BASE + 11, lw=0.9)
-axA.text(13.6, BASE + 43.8, "norm", fontsize=8, color=MUTED, ha="center",
-         style="italic")
+# streams
+SX = 49.5
+slab(axA, SX, SW, 13, CYAN_T, CYAN)                     # V hidden
+blabel(axA, SX + SW / 2, BASE + 32.2, "32", 6.2, INK, weight="bold")
+slab(axA, SX, SW - 3.2, 13, PURP_T, PURP, )            # A hidden
+blabel(axA, SX + (SW - 3.2) / 2, BASE + 15.6, "32", 6.2, INK, weight="bold")
+arr(axA, 33.5 + SW + 0.6, BASE + 12, SX - 0.6, BASE + 30)
+arr(axA, 33.5 + SW + 0.6, BASE + 10, SX - 0.6, BASE + 8.5)
 
-# ---- streams ----
-VSX, ASX = 42, 42
-VY, AY = BASE + 22, BASE - 2
-slab(axA, VSX, VY, SW, 11, TEAL_F, TEAL_E)
-slab(axA, ASX, AY, SW, 11, PURP_F, PURP_E)
-axA.text(VSX + SW / 2, VY + 15.6, "32", ha="center", fontsize=9.5,
-         fontweight="bold", color=INK)
-axA.text(ASX + SW / 2, AY + 15.6, "32", ha="center", fontsize=9.5,
-         fontweight="bold", color=INK)
-axA.text(VSX - 3.5, VY + 21.5, "value stream", fontsize=9, color=TEAL_E,
-         style="italic", ha="left")
-axA.text(ASX - 3.5, AY + 21.5, "advantage stream", fontsize=9, color=PURP_E,
-         style="italic", ha="left")
-tarrow(axA, xs[2] + SW + DX * 0.4, BASE + 11, VSX - 1.2, VY + 5.5)
-tarrow(axA, xs[2] + SW + DX * 0.4, BASE + 11, ASX - 1.2, AY + 5.5)
+# heads
+vd = Circle((SX + SW + 7, BASE + 30), 1.6, fc=CYAN, ec=CYAN, zorder=6)
+axA.add_patch(vd)
+blabel(axA, SX + SW + 7, BASE + 34.4, "$V(s)$", 6.4, "#2E7E93")
+arr(axA, SX + SW, BASE + 30, SX + SW + 5.2, BASE + 30)
+box(axA, SX + SW, BASE + 3.2, SW, 4.6, PURP_T, PURP)    # 8 advantages
+blabel(axA, SX + SW + SW / 2, BASE + 10.2, "8", 6, INK, weight="bold")
+blabel(axA, SX + SW + SW / 2, BASE - 3.4, "$A(s,\\cdot)$", 6.2, PURP)
+arr(axA, SX + (SW - 3.2) / 2, BASE + 5.5, SX + SW + 0.6, BASE + 6.5)
 
-vdot = Circle((VSX + SW + 8.5, VY + 5.5), 1.7, fc=TEAL_E, ec=TEAL_E, zorder=6)
-axA.add_patch(vdot)
-axA.text(VSX + SW + 8.5, VY + 9.8, "$V(s)$", ha="center", fontsize=10, color=TEAL_E)
-tarrow(axA, VSX + SW, VY + 5.5, VSX + SW + 6.6, VY + 5.5)
+# aggregation
+AGX = 78
+axA.add_patch(Circle((AGX, BASE + 19), 2.8, fc="white", ec=INK, lw=0.9, zorder=7))
+blabel(axA, AGX, BASE + 19, "$\\Sigma$", 8.5)
+arr(axA, SX + SW + 8.8, BASE + 30, AGX - 3.1, BASE + 19)
+arr(axA, SX + SW + SW + 0.6, BASE + 5.5, AGX - 3.1, BASE + 19)
+blabel(axA, AGX + 0.5, BASE + 25.8, "$Q(s,a)=V+(A-\\bar{A})$", 6.4, INK)
+arr(axA, AGX + 3.1, BASE + 19, 92.5, BASE + 19)
+blabel(axA, 87, BASE + 22.2, "argmax", 5.4, GREY, style="italic")
 
-slab(axA, ASX + 2.5, AY - 4.5, SW + 4, 5.2, PURP_F, PURP_E)
-axA.text(ASX + 2.5 + (SW + 4) / 2, AY + 3.6, "8", ha="center", fontsize=9,
-         fontweight="bold")
-axA.text(ASX + 2.5 + (SW + 4) / 2, AY - 8.2, "$A(s,\\cdot)$", ha="center",
-         fontsize=9, color=PURP_E)
-tarrow(axA, ASX + SW / 2, AY, ASX + 2.5 + (SW + 4) / 2, AY - 1.6)
+# output Q-vector mini-rows
+for i in range(4):
+    yy = BASE + 26 - i * 5.2
+    box(axA, 93, yy, 6, 1.7, GREEN_T if i == 1 else "#F1F3F5",
+        GREEN if i == 1 else GREY, lw=0.6)
+blabel(axA, 96, BASE + 33.8, "$Q$", 6.4, INK, weight="bold")
+blabel(axA, 96, BASE + 2.6, "8 VMs", 5.6, GREY)
+blabel(axA, SX + SW + SW / 2, BASE + 34.5, "value stream", 5.6, "#2E7E93",
+       style="italic")
+blabel(axA, SX + 3.5, BASE - 9.4, "advantage stream", 5.6, PURP, style="italic")
 
-# ---- aggregation ----
-AGX = 68
-axA.add_patch(Circle((AGX, BASE + 11), 3.1, fc="white", ec=INK, lw=1.4, zorder=6))
-axA.text(AGX, BASE + 11, "$\\Sigma$", ha="center", va="center", fontsize=13, zorder=7)
-tarrow(axA, VSX + SW + 10.3, VY + 5.5, AGX - 3.4, BASE + 11)
-tarrow(axA, ASX + 2.5 + SW + 4, AY - 1.9, AGX - 3.4, BASE + 11)
-axA.text(AGX, BASE + 18.0, "$Q=V+(A-\\bar{A})$", ha="center", fontsize=10.5, color=INK)
+axA.set_xlim(0, 102); axA.set_ylim(8, 76)
 
-# ---- safety mask gate ----
-MGX = 79
-for yy in (BASE + 6, BASE + 16):
-    axA.add_patch(Rectangle((MGX, yy), 1.5, 3.4, fc=ORNG_E, ec=ORNG_E, zorder=6))
-tarrow(axA, AGX + 3.4, BASE + 11, MGX - 1.2, BASE + 11)
-axA.text(MGX - 4.5, BASE + 28.5, "safety mask", ha="center", fontsize=9,
-         color=ORNG_E, fontweight="bold")
-axA.text(MGX - 4.5, BASE + 25.2, "util > 0.9 $\\Rightarrow$ blocked", ha="center",
-         fontsize=8, color=MUTED, style="italic")
+# ================================================================= #
+# PANEL b — masked dispatch (quantitative example)                  #
+# ================================================================= #
+panel_letter(axB, "b")
+ptitle(axB, "Safety-masked dispatch (example state)")
 
-# ---- 8 candidate actions ----
-OX = 88
-ys8 = [BASE + 20 - i * 4.6 for i in range(8)]
-for i, yy in enumerate(ys8):
-    axA.add_patch(Circle((OX, yy), 1.15, fc="white", ec=SLATE_E, lw=1.1, zorder=6))
-    axA.text(OX + 2.4, yy, f"VM$_{{{i}}}$", fontsize=7.5, color=MUTED, va="center")
-tarrow(axA, MGX + 2.8, BASE + 11, OX - 1.6, BASE + 11, lw=1.0)
+qv  = [3.1, 2.7, 3.3, 4.2, 2.9, 4.7, 3.2, 2.8]     # VM5 highest but saturated
+masked_i, chosen_i = 5, 3
+bx0, bw_, gap = 8, 5.2, 2.4
+ymax = 30
+for i, q in enumerate(qv):
+    x = bx0 + i * (bw_ + gap)
+    h = (q - 2.0) / (5.0 - 2.0) * ymax
+    if i == masked_i:
+        axB.add_patch(Rectangle((x, 12), bw_, h, fc="none", ec=RED, lw=0.9,
+                                hatch="///", zorder=4))
+        blabel(axB, x + bw_ / 2, 12 + h + 2.6, "masked", 5.4, RED)
+    elif i == chosen_i:
+        axB.add_patch(Rectangle((x, 12), bw_, h, fc=GREEN, ec=GREEN, lw=0.7, zorder=4))
+        blabel(axB, x + bw_ / 2, 12 + h + 2.6, "$a^{*}$", 6.6, GREEN, weight="bold")
+    else:
+        axB.add_patch(Rectangle((x, 12), bw_, h, fc=BLUE, ec=BLUE, lw=0.6,
+                                alpha=0.75, zorder=4))
+    blabel(axB, x + bw_ / 2, 8.6, f"VM$_{{{i}}}$", 5.2, GREY)
+axB.plot([bx0 - 1.5, bx0 + 8 * (bw_ + gap) - 1], [12, 12], color=INK, lw=0.8)
+blabel(axB, 3.4, 28, "$Q(s,\\cdot)$", 6.2, INK, ha="left")
+blabel(axB, 58, 58.5, "mask rule", 6, RED, weight="bold", ha="left")
+blabel(axB, 58, 53.6, "util$_i$>0.9 $\\Rightarrow$ masked", 5.8, INK, ha="left")
+blabel(axB, 58, 47.0, "VM$_5$ saturated:", 5.6, GREY, ha="left")
+blabel(axB, 58, 42.6, "excluded despite", 5.6, GREY, ha="left")
+blabel(axB, 58, 38.2, "highest $Q$", 5.6, GREY, ha="left")
+arr(axB, 57.2, 48.5, bx0 + masked_i * (bw_ + gap) + bw_ + 1.4, 31, color=RED,
+    lw=0.7, ls=(0, (2.5, 1.8)))
+box(axB, 60, 14, 34, 12, GREEN_T, GREEN)
+blabel(axB, 77, 22.5, "$a^{*}=\\mathrm{VM}_3$", 7, "#0B7A66", weight="bold")
+blabel(axB, 77, 17.8, "dispatch  ·  real time", 5.6, GREY, style="italic")
+arr(axB, 56, 20, 59.4, 20, color=GREEN, lw=0.9)
+axB.set_xlim(0, 98); axB.set_ylim(2, 62)
 
-chosen = ys8[3]
-axA.add_patch(Circle((OX, chosen), 1.5, fc=GRN_E, ec=GRN_E, zorder=7))
-tarrow(axA, OX + 8.6, chosen, OX + 12.6, chosen, color=GRN_E, lw=1.8, ms=11)
-axA.text(OX + 14.0, chosen, "$a^{*}$: dispatch\nto VM$_3$", fontsize=9,
-         color=GRN_E, va="center", fontweight="bold")
+# ================================================================= #
+# PANEL c — training loop                                           #
+# ================================================================= #
+panel_letter(axC, "c")
+ptitle(axC, "Prioritized replay with double targets")
 
-axA.text(52, 6.0,
-         "Ablation-validated: removing the dueling streams or the safety mask each raises cost by ~35 % (5 seeds, Wilcoxon $p<0.001$).",
-         ha="center", fontsize=9, color=MUTED, style="italic")
-axA.set_xlim(0, 116); axA.set_ylim(0, 92)
+def mbox(ax, x, y, w, h, txt, fc, ec, fs=6.0, sub=None, sfs=5.2):
+    box(ax, x, y, w, h, fc, ec)
+    if sub:
+        blabel(ax, x + w / 2, y + h * 0.66, txt, fs, INK, weight="bold")
+        blabel(ax, x + w / 2, y + h * 0.27, sub, sfs, GREY, style="italic")
+    else:
+        blabel(ax, x + w / 2, y + h / 2, txt, fs, INK, weight="bold")
 
-# ================================================================== #
-# (b) TRAINING — clean left-to-right chain, loop routed below         #
-# ================================================================== #
-panel(axB, "b", "Training: prioritized replay + double target")
-bx = axB
-bx.set_xlim(0, 100); bx.set_ylim(0, 100)
+mbox(axC, 2.5, 56, 16, 14, "environment", "#F6F8FA", GREY,
+     sub="Borg · parallel VMs")
+mbox(axC, 2.5, 30, 16, 14, "reward", ORNG_T, ORNG,
+     sub="QoS $\\gg$ cost · overload")
+arr(axC, 10.5, 44.4, 10.5, 55.4, lw=0.7)
 
-mbox(bx, 3, 56, 17, 15, "environment", GREY_F, GREY_E,
-     sub="Borg stream ·\nparallel VMs", sub_fs=7.2)
-mbox(bx, 3, 28, 17, 15, "reward", ORNG_F, ORNG_E,
-     sub="QoS $\\gg$ cost\noverload · shaping", sub_fs=7.2)
-tarrow(bx, 11.5, 43.2, 11.5, 55.6, lw=1.0)
-
-# SumTree (drawn)
-def sumtree(ax, x0, y_root):
-    levels = [(1, 4.6), (2, 3.0), (4, 2.1)]
-    xs_l, ys_l = [], []
-    yy = y_root
-    for li, (n, r) in enumerate(levels):
-        xs_ = [x0] if n == 1 else [x0 - 9 + i * (18 / (n - 1)) for i in range(n)]
-        for xx in xs_:
-            ax.add_patch(Circle((xx, yy), r * (1.3 if li == 0 else 1.0),
-                                fc="white", ec=TEAL_E, lw=1.2, zorder=6))
-        xs_l.append(xs_); ys_l.append(yy)
-        yy -= 9.0
-    for d in range(len(levels) - 1):
+# SumTree
+def sumtree(ax, x0, y0, ec):
+    lv = [(1, 3.4), (2, 2.2), (4, 1.6)]
+    xs_l, ys_l, yy = [], [], y0
+    for li, (n, r) in enumerate(lv):
+        xs = [x0] if n == 1 else [x0 - 7.5 + i * (15 / (n - 1)) for i in range(n)]
+        for xx in xs:
+            ax.add_patch(Circle((xx, yy), r * (1.25 if li == 0 else 1),
+                                fc="white", ec=ec, lw=0.8, zorder=6))
+        xs_l.append(xs); ys_l.append(yy); yy -= 7.2
+    for d in range(2):
         for i, p in enumerate(xs_l[d]):
             for c in xs_l[d + 1][2 * i: 2 * i + 2]:
-                ax.plot([p, c], [ys_l[d], ys_l[d + 1]], color=TEAL_E, lw=0.8, zorder=5)
-    return xs_l, ys_l
+                ax.plot([p, c], [ys_l[d], ys_l[d + 1]], color=ec, lw=0.6, zorder=5)
 
-sumtree(bx, 40, 76)
-bx.text(40, 87, "SumTree replay", fontsize=9.5, color=TEAL_E,
-        fontweight="bold", ha="center")
-bx.text(40, 47.5, "$P(i)\\propto|\\delta_i|^{\\alpha}$ · IS $\\beta\\to1$ · 50k",
-        fontsize=7.8, color=MUTED, ha="center", style="italic")
+blabel(axC, 34, 76.5, "SumTree", 6, "#2E7E93", weight="bold")
+sumtree(axC, 34, 71, CYAN)
+blabel(axC, 34, 48.5, "$P(i)\\!\\propto\\!|\\delta_i|^{\\alpha}$, $\\beta\\!\\to\\!1$, 50k",
+       5.4, GREY, style="italic")
+arr(axC, 18.9, 63, 24.5, 64.5, lw=0.7)
+blabel(axC, 24.0, 72.5, "$(s,a,r,s')$", 5.4, GREY)
 
-tarrow(bx, 20.4, 63.5, 29.6, 68.5)
-bx.text(25, 74.5, "$(s,a,r,s')$", fontsize=7.8, color=MUTED, ha="center")
+mbox(axC, 47, 56, 22, 14, "double target", BLUE_T, BLUE,
+     sub="$y\\!=\\!r\\!+\\!\\gamma Q^{-}\\!(s',\\,a^{*})$")
+arr(axC, 43.6, 64, 46.4, 63, lw=0.7, color=CYAN)
+mbox(axC, 47, 30, 22, 14, "Adam step", PURP_T, PURP,
+     sub="IS-weighted MSE")
+arr(axC, 58, 55.4, 58, 44.6, lw=0.7)
+mbox(axC, 74, 43, 22, 14, "soft sync", PURP_T, PURP, sub="$\\tau\\!=\\!0.005$")
+arr(axC, 69.4, 37, 73.4, 43.5, lw=0.7, ls=(0, (2.5, 1.8)), color=PURP)
+# loop along bottom
+axC.plot([85, 85], [42.6, 10], color=PURP, lw=0.7, ls=(0, (2.5, 1.8)), zorder=2)
+axC.plot([85, 10.5], [10, 10], color=PURP, lw=0.7, ls=(0, (2.5, 1.8)), zorder=2)
+arr(axC, 10.5, 10, 10.5, 29.4, lw=0.7, ls=(0, (2.5, 1.8)), color=PURP)
+blabel(axC, 48, 5.2, "$\\theta$ and $\\theta^{-}$ updates (300 episodes)",
+       5.4, PURP, style="italic")
+axC.set_xlim(0, 100); axC.set_ylim(0, 84)
 
-mbox(bx, 55, 56, 22, 14, "double target", SLATE_F, SLATE_E,
-     sub="$y=r+\\gamma Q^{-}(s',\\, a^{*})$", sub_fs=7.8)
-tarrow(bx, 49.4, 65, 54.6, 63.5, lw=1.0)
-bx.text(52, 68.8, "sample", fontsize=7.5, color=MUTED, ha="center", style="italic")
+# ================================================================= #
+# PANEL d — XAI + trust audit (quantitative)                        #
+# ================================================================= #
+panel_letter(axD, "d")
+ptitle(axD, "Attribution methods, audited")
 
-mbox(bx, 55, 28, 22, 14, "Adam step", PURP_F, PURP_E,
-     sub="weighted MSE · clip", sub_fs=7.6)
-tarrow(bx, 66, 55.6, 66, 42.4, lw=1.0)
+mbox(axD, 1.5, 42, 15, 15, "decision\n$Q(s,a^{*})$", BLUE_T, BLUE, fs=5.8)
 
-mbox(bx, 83, 42, 15, 14, "soft sync", PURP_F, PURP_E,
-     sub="$\\tau\\!=\\!0.005$", sub_fs=7.8)
-tarrow(bx, 77.4, 35, 82.6, 42, color=PURP_E, lw=1.0, ls="--")
+rows = [                     # name, deletion AOPC, family
+    ("Occlusion",        1.129, PURP),
+    ("KernelSHAP",       0.786, CYAN),
+    ("Grad × Input",     0.102, BLUE),
+    ("Int. gradients",   0.016, BLUE),
+]
+ys_r = [70, 55, 40, 25]
+BARX, BARMAXW = 55.0, 28
+for (name, val, col), yy in zip(rows, ys_r):
+    blabel(axD, 27.5, yy, name, 5.8, INK, ha="left")
+    box(axD, BARX, yy - 1.5, BARMAXW * (val / 1.2), 3.0, col, col, lw=0.5)
+    blabel(axD, BARX + BARMAXW * (val / 1.2) + 1.6, yy, f"{val:.2f}", 5.2, GREY,
+           ha="left")
+    arr(axD, 17.0, 49.5, 25.5, yy, lw=0.55, ms=5)
+box(axD, BARX, 8.5, BARMAXW, 0.9, "#EDF0F3", GREY, lw=0.5)
+blabel(axD, BARX, 14.5, "deletion AOPC (faithfulness, higher $=$ better)",
+       5.2, GREY, style="italic", ha="left")
 
-# dashed loop routed cleanly below everything
-bx.plot([90.5, 90.5], [41.8, 12], color=PURP_E, lw=1.0, ls="--", zorder=2)
-bx.plot([90.5, 11.5], [12, 12], color=PURP_E, lw=1.0, ls="--", zorder=2)
-tarrow(bx, 11.5, 12, 11.5, 27.4, color=PURP_E, lw=1.0, ls="--")
-bx.text(50.5, 8.0, "online $\\theta$ + target $\\theta^{-}$ updates", fontsize=8,
-        color=PURP_E, style="italic", ha="center")
+mbox(axD, 62, 36, 36, 24, "6 trust metrics", ORNG_T, ORNG, fs=6.2,
+     sub="ins/del AOPC · top-$k$ fidelity\nconsistency · infidelity · stability")
+axD.plot([57.5, 57.5], [23, 73], color=GREY, lw=0.7, zorder=2)
+for yy in ys_r:
+    arr(axD, 56.2, yy, 57.2, yy, lw=0.55, ms=5, color=GREY)
+arr(axD, 58, 48, 61.4, 48, lw=0.8, ms=7, color=GREY)
+blabel(axD, 50, 4.5,
+       "latency: Grad×In 0.16 ms · Occ 3.3 ms · IG 5.3 ms · SHAP 53.9 ms",
+       5.2, GREY, style="italic")
+axD.set_xlim(0, 100); axD.set_ylim(0, 82)
 
-# ================================================================== #
-# (c) XAI + TRUST — fan-out then a collection rail (no crossings)     #
-# ================================================================== #
-panel(axC, "c", "Explainability + trust audit of every decision")
-cx = axC
-cx.set_xlim(0, 100); cx.set_ylim(0, 100)
-
-mbox(cx, 2, 42, 16, 16, "decision\n$Q(s, a^{*})$", SLATE_F, SLATE_E, fs=9)
-
-methods = [("KernelSHAP", "250 coalitions · WLS", TEAL_F, TEAL_E),
-           ("Gradient×Input", "exact · 0.15 ms", TEAL_F, TEAL_E),
-           ("Occlusion", "windowed $\\Delta Q$", PURP_F, PURP_E),
-           ("Integrated Grads", "path integral", PURP_F, PURP_E)]
-ys_m = [78, 60.5, 43, 25.5]
-for (name, sub, fc, ec), yy in zip(methods, ys_m):
-    mbox(cx, 28, yy, 26, 11.5, name, fc, ec, fs=8.8, sub=sub)
-    tarrow(cx, 18.4, 50, 27.6, yy + 5.75, lw=0.9, ms=8)
-
-# collection rail
-cx.plot([60, 60], [31, 84], color=GREY_E, lw=1.1, zorder=2)
-for yy in ys_m:
-    tarrow(cx, 54.2, yy + 5.75, 59.5, yy + 5.75, color=GREY_E, lw=0.9, ms=8)
-
-mbox(cx, 66, 40, 32, 17, "6 trust metrics", ORNG_F, ORNG_E, fs=9.5,
-     sub="deletion / insertion AOPC · top-$k$ fidelity\nconsistency · infidelity · stability")
-tarrow(cx, 60.5, 50, 65.6, 50, color=GREY_E, lw=1.2, ms=10)
-
-cx.text(50, 8,
-        "Occlusion & KernelSHAP most faithful (AOPC $+$0.73 / $+$0.56); Gradient×Input 340× faster — an audited trade-off.",
-        ha="center", fontsize=8.2, color=MUTED, style="italic")
-
-fig.savefig(OUT, dpi=220, bbox_inches="tight", facecolor="white")
-print(f"saved -> {OUT}")
+# ---------------- save all formats ----------------
+for ext in ("pdf", "svg"):
+    fig.savefig(R / f"fig1_architecture.{ext}", bbox_inches="tight",
+                facecolor="white")
+fig.savefig(R / "fig1_architecture.png", dpi=300, bbox_inches="tight",
+            facecolor="white")
+fig.savefig(R / "architecture_diagram.png", dpi=300, bbox_inches="tight",
+            facecolor="white")
+print("saved: fig1_architecture.pdf / .svg / .png (+ architecture_diagram.png)")
