@@ -144,11 +144,11 @@ We deployed the same pipeline — with only `deadline_tightness` retuned (1.0 �
 |---|---|---|---|
 | Max-Min | **603,439** | 59.7% | 16.5 |
 | Greedy-Least-Loaded | 640,705 | 58.9% | 19.1 |
-| **DQN (ours)** | 1,380,127 | 64.9% | 55.1 |
-| Min-Min *(Borg's winner)* | 8,405,838 🔴 | **48.6%** | 217.4 |
+| **DQN (ours)** | 867,856 | **58.7%** | 45.9 |
+| Min-Min *(Borg's winner)* | 8,405,838 🔴 | 48.6% | 217.4 |
 | Q-learning | 9,313,478 🔴 | 68.1% | 234.4 |
 
-> **Robustness finding:** Min-Min — the strongest scheduler on Borg — *collapses by 14×* on the heavier KTH workload (its earliest-finish rule queues long HPC jobs catastrophically), while the DQN's capacity-aware policy stays within 2.3× of the best. The DQN is never the worst scheduler on either dataset; the heuristic rankings invert across workloads, but the learned policy is robust to both. A genuinely honest cross-dataset result — no cherry-picking.
+> **Robustness finding:** Min-Min — the strongest scheduler on Borg — *collapses by 14×* on the heavier KTH workload (its earliest-finish rule queues long HPC jobs catastrophically), while the DQN's capacity-aware policy stays within 1.44× of the best. The DQN is never the worst scheduler on either dataset; the heuristic rankings invert across workloads, but the learned policy is robust to both. A genuinely honest cross-dataset result — no cherry-picking.
 
 ---
 

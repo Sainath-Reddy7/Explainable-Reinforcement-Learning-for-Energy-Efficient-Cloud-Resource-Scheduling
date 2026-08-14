@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-08-14T14:42:23.076097",
+  "timestamp": "2026-08-14T15:03:16.307632",
   "seed": 0,
   "python": "3.13.3",
   "platform": "Windows-11-10.0.26200-SP0",
@@ -21,7 +21,8 @@
       "edge_fraction": 0.25,
       "vm_seed": 42,
       "tasks_per_episode": 200,
-      "adaptive_weights": false
+      "adaptive_weights": false,
+      "deadline_tightness": 4.0
     },
     "qnetwork": {
       "hidden": [
@@ -114,5 +115,5 @@
     "coll_type_std": 0.0,
     "n_tasks": 5000
   },
-  "total_runtime_sec": 477.91563153266907
+  "total_runtime_sec": 476.19952869415283
 }
