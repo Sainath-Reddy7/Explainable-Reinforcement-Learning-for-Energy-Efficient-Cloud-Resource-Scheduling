@@ -184,6 +184,12 @@ We deployed the same pipeline — with only `deadline_tightness` retuned (1.0 �
 
 The pipeline flows through **6 interconnected phases**, transforming raw Borg traces into verified, explainable scheduling decisions:
 
+<p align="center">
+  <img src="results/architecture_diagram.png" alt="Dueling Double-DQN architecture" width="95%">
+</p>
+
+*(High-resolution version: `results/architecture_diagram.png` — regenerated anytime with `python plot_architecture.py`)*
+
 <div align="center">
 
 ```
