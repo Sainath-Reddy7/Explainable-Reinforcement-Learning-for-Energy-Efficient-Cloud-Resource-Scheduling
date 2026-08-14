@@ -81,11 +81,16 @@ def box(p, x, y, w, h, fc, ec, lw=0.8, ls="-", hatch=None):
                               linestyle=ls, hatch=hatch, zorder=3))
 
 
+PAIRS = []   # (panel, text_artist, box_x, box_y, box_w, box_h) containment pairs
+
+
 def mbox(p, x, y, w, h, t, fc, ec, fs=6.0, sub=None, sfs=5.2):
     box(p, x, y, w, h, fc, ec)
-    txt(p, x + w / 2, y + h * (0.64 if sub else 0.5), t, fs, INK, weight="bold")
+    t1 = txt(p, x + w / 2, y + h * (0.64 if sub else 0.5), t, fs, INK, weight="bold")
+    PAIRS.append((p, t1, x, y, w, h))
     if sub:
-        txt(p, x + w / 2, y + h * 0.27, sub, sfs, GREY, style="italic")
+        t2 = txt(p, x + w / 2, y + h * 0.27, sub, sfs, GREY, style="italic")
+        PAIRS.append((p, t2, x, y, w, h))
 
 
 # ================================================================= #
@@ -190,9 +195,8 @@ txt("b", 67, 55.0, "util$_i$>0.9 $\\Rightarrow$ masked", 5.6, INK, ha="left")
 arr("b", 66.2, 57.5, bx0 + MASKED * (bw_ + gap) + bw_ + 1.0, 33.0,
     color=RED, lw=0.7, ls=(0, (2.5, 1.8)))
 
-box("b", 67, 16, 29, 12, GREEN_T, GREEN)
-txt("b", 81.5, 24.3, "$a^{*}=\\mathrm{VM}_3$", 6.6, "#0B7A66", weight="bold")
-txt("b", 81.5, 19.3, "dispatch · real time", 5.4, GREY, style="italic")
+mbox("b", 67, 16, 29, 12, "$a^{*}=\\mathrm{VM}_3$", GREEN_T, GREEN, fs=6.4,
+     sub="dispatch · real time")
 arr("b", 63.5, 22, 66.4, 22, color=GREEN, lw=0.9, ms=7)
 AX["b"].set_xlim(0, 99); AX["b"].set_ylim(2, 68)
 
@@ -201,8 +205,9 @@ AX["b"].set_xlim(0, 99); AX["b"].set_ylim(2, 68)
 # ================================================================= #
 panel_letter("c"); ptitle("c", "Prioritized replay with double targets")
 
-mbox("c", 2.5, 55, 16, 14, "environment", "#F7F9FB", GREY, sub="Borg · parallel VMs")
-mbox("c", 2.5, 29, 16, 14, "reward", ORNG_T, ORNG, sub="QoS $\\gg$ cost · overload")
+mbox("c", 2.5, 55, 18, 14, "environment", "#F7F9FB", GREY, sub="Borg task stream")
+mbox("c", 2.5, 29, 18, 14, "reward", ORNG_T, ORNG,
+     sub="QoS $\\gg$ cost\noverload · shaping")
 arr("c", 10.5, 43.4, 10.5, 54.6)
 
 txt("c", 34, 82.5, "SumTree", 6.0, "#2E7E93", weight="bold")
@@ -226,7 +231,7 @@ def sumtree(x0, y0, ec):
 sumtree(34, 74, CYAN)
 txt("c", 34, 52.5, "$P(i)\\!\\propto\\!|\\delta_i|^{\\alpha}$ · $\\beta\\!\\to\\!1$ · 50k",
     5.2, GREY, style="italic")
-arr("c", 18.9, 62, 30.2, 71.5)
+arr("c", 21.2, 62, 30.2, 71.5)
 txt("c", 24.0, 75.5, "$(s,a,r,s')$", 5.2, GREY)
 
 mbox("c", 47, 55, 22, 14, "double target", BLUE_T, BLUE,
@@ -264,10 +269,8 @@ box("d", BARX, 18.5, BARMAXW, 0.9, "#EDF0F3", GREY, lw=0.5)
 txt("d", 10, 13.5, "deletion AOPC (higher $=$ better)",
     5.2, GREY, style="italic", ha="left")
 
-box("d", 58, 8.5, 40, 15, ORNG_T, ORNG)
-txt("d", 78, 19.5, "6 trust metrics", 6.0, INK, weight="bold")
-txt("d", 78, 13.0, "ins/del AOPC · fidelity\nconsistency · infidelity · stability",
-    4.8, GREY, style="italic")
+mbox("d", 58, 8.5, 40, 15, "6 trust metrics", ORNG_T, ORNG, fs=6.0,
+     sub="ins/del AOPC · fidelity\nconsistency · infidelity · stability", sfs=4.8)
 arr("d", 50, 16, 57.4, 16, lw=0.8, ms=7, color=GREY)
 txt("d", 50, 3.0, "latency: G×I 0.16 · Occ 3.3 · IG 5.3 · SHAP 53.9 ms",
     5.2, GREY, style="italic")
@@ -320,7 +323,47 @@ def check_collisions():
     return violations
 
 
-check_collisions()
+def fit_pairs():
+    """Shrink each boxed label until it fits fully inside its box (min 4.2 pt)."""
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    for p, t, bx, by, bw, bh in PAIRS:
+        ax_ = AX[p]
+        (x0, y0) = ax_.transData.transform((bx + 0.7, by + 0.7))
+        (x1, y1) = ax_.transData.transform((bx + bw - 0.7, by + bh - 0.7))
+        for _ in range(30):
+            bb = t.get_window_extent(renderer)
+            if bb.x0 >= x0 and bb.x1 <= x1 and bb.y0 >= y0 and bb.y1 <= y1:
+                break
+            fs = t.get_fontsize()
+            if fs <= 4.2:
+                break
+            t.set_fontsize(round(fs - 0.2, 2))
+
+
+def check_containment():
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    bad = []
+    for p, t, bx, by, bw, bh in PAIRS:
+        ax_ = AX[p]
+        (x0, y0) = ax_.transData.transform((bx, by))
+        (x1, y1) = ax_.transData.transform((bx + bw, by + bh))
+        bb = t.get_window_extent(renderer)
+        if bb.x0 < x0 - 0.5 or bb.x1 > x1 + 0.5 or bb.y0 < y0 - 0.5 or bb.y1 > y1 + 0.5:
+            bad.append(f"[{p}] TEXT-EXCEEDS-BOX: '{t.get_text()[:26]}'")
+    return bad
+
+
+fit_pairs()
+v1 = check_containment()
+v2 = check_collisions()
+if v1:
+    print(f"CONTAINMENT ({len(v1)}):")
+    for v in v1:
+        print("  ✗", v)
+if not v1 and not v2:
+    print("final check: CLEAN — 0 collisions, all boxed text contained")
 
 for ext in ("pdf", "svg"):
     fig.savefig(R / f"fig1_architecture.{ext}", bbox_inches="tight", facecolor="white")
