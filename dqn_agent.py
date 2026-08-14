@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from qnetwork import QNetwork
+from qnetwork import QNetwork, VanillaQNetwork
 
 
 # --------------------------------------------------------------------------- #
@@ -170,8 +170,9 @@ class DQNAgent:
                  double_dqn=True, per_enabled=True, per_alpha=0.6,
                  beta_start=0.4, beta_end=1.0, beta_anneal_steps=10_000,
                  eps_start=1.0, eps_end=0.05, eps_decay=0.995,
-                 dropout=0.1, seed=0):
+                 dropout=0.1, seed=0, dueling=True, use_mask=True):
         self.action_dim = action_dim
+        self.use_mask = use_mask
         self.gamma = gamma
         self.batch_size = batch_size
         self.tau = soft_update_tau
@@ -187,10 +188,11 @@ class DQNAgent:
         self.beta_anneal_steps = max(beta_anneal_steps, 1)
         self.beta = beta_start
 
-        self.q = QNetwork(state_dim, action_dim, hidden=hidden[:2], lr=lr,
-                          dropout=dropout, seed=seed)
-        self.target_q = QNetwork(state_dim, action_dim, hidden=hidden[:2], lr=lr,
-                                 dropout=dropout, seed=seed + 1)
+        NetCls = QNetwork if dueling else VanillaQNetwork
+        self.q = NetCls(state_dim, action_dim, hidden=hidden[:2], lr=lr,
+                        dropout=dropout, seed=seed)
+        self.target_q = NetCls(state_dim, action_dim, hidden=hidden[:2], lr=lr,
+                               dropout=dropout, seed=seed + 1)
         self.target_q.set_weights(self.q.get_weights())
         # match normalization stats
         self.target_q.run_mean = self.q.run_mean.copy()
@@ -202,7 +204,8 @@ class DQNAgent:
         self.rng = np.random.default_rng(seed)
 
     # ---- action selection --------------------------------------------------
-    def act(self, state, greedy=False, use_mask=True):
+    def act(self, state, greedy=False, use_mask=None):
+        if use_mask is None: use_mask = self.use_mask
         """Pick a VM. When ``use_mask``, VMs whose utilization feature exceeds
         0.9 get their Q-value set to -inf before the argmax — a safety mask
         that mechanically prevents the policy from piling onto a saturated

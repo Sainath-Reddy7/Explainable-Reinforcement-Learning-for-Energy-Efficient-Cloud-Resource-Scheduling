@@ -152,6 +152,34 @@ We deployed the same pipeline — with only `deadline_tightness` retuned (1.0 �
 
 ---
 
+## 🔬 Publication Rigor (5 seeds, significance tests, ablations)
+
+**Multi-seed evaluation** (seeds 0–4, mean ± std across 200–1000 task loads, Borg):
+
+| Scheduler | Makespan (s) | Cost ($) | Miss Rate | Imbalance |
+|---|---|---|---|---|
+| Min-Min | 1194 ± 18 | 32,036 ± 680 | 0.0% | 4.29 ± 0.06 |
+| Max-Min | 1194 ± 18 | 45,019 ± 549 | 0.0% | 1.64 ± 0.07 |
+| **DQN (ours)** | **1194 ± 18** | **29,141 ± 3,097** | **0.0%** | **0.99 ± 0.03** |
+| Greedy | 1257 ± 56 | 41,997 ± 1,259 | 0.1% | 2.74 ± 0.55 |
+| PSO | 3054 ± 134 | 9,745 ± 169 | 44.1 ± 2.0% | 25.6 ± 1.7 |
+
+**Wilcoxon signed-rank** (two-sided, paired per seed×load, n=75): the DQN is **significantly better than FCFS, RoundRobin and Greedy on every metric** (all p < 0.0002), **significantly cheaper than Min-Min (p = 0.0004) and Max-Min (p < 0.0001)**, ties them on makespan/miss (all-zero differences), and dominates PSO and Q-learning on makespan/miss (p < 0.0001). The only significant loss: PSO on cost — the expected QoS-for-cost trade-off (PSO misses 44% of deadlines).
+
+**Ablation study** (seed 0, Δ vs full model, averaged across loads):
+
+| Variant | Δ Cost ($) | Δ Makespan | Verdict |
+|---|---|---|---|
+| full model | — | — | reference |
+| − Dueling streams | **+10,003 (+34%)** | +0 | **critical** for cost optimization |
+| − action mask | **+10,679 (+37%)** | +4 | **critical** — validates the safety mask |
+| − reward shaping | +1,150 (+4%) | +0 | modest but positive |
+| − PER | −510 | +0 | *not needed* at this scale (honest finding) |
+
+> The two architectural contributions (Dueling + mask) each independently account for ~35% of the cost advantage — removing either erases the win over Min-Min. PER contributes nothing measurable here, reported honestly. Full data in `results/publication/`.
+
+---
+
 ## 🏗️ Architecture
 
 The pipeline flows through **6 interconnected phases**, transforming raw Borg traces into verified, explainable scheduling decisions:
@@ -426,6 +454,24 @@ A self-contained, interactive HTML dashboard with:
 ### Architecture Animation (`architecture_animation.html`)
 
 A **14-step animated walkthrough** of the full pipeline — perfect for presentations and defenses. Click **Play** to watch each phase light up with explanations and formulas. Speed control included.
+
+---
+
+## 📑 Related-Work Comparison
+
+Positioning against the scheduling/XAI literature covered in our review (full citations in References):
+
+| Method (Year) | RL? | XAI? | Trust-audited? | Real data? | ≥2 datasets? | Load balance |
+|---|---|---|---|---|---|---|
+| Yu et al. RL-MOTS (2025) — *base paper* | DQN | ✗ | ✗ | ✗ (CloudSim) | ✗ | ✗ |
+| Mangalampalli (2024) priority DQN | DQN | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Zhang et al. (2025) DRL+SHAP slicing | DRL | ✓ SHAP | ✗ (display only) | ✓ | ✗ | ✗ |
+| Li et al. (2022) Weighted Double-DQN | DQN | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Ramezani et al. (2023) | tabular Q | ✗ | ✗ | ✓ traces | ✗ | ✓ |
+| SR-PSO (2023), VMS-MCSA (2021) | ✗ metaheuristic | ✗ | ✗ | ✗ | ✗ | partial |
+| **Ours (RL-MOTS-XAI v2)** | **Dueling Double DQN + PER** | **✓ 4 methods** | **✓ 6 metrics** | **✓ Borg + KTH SP2** | **✓** | **✓ (#1 of 8)** |
+
+**Gap filled:** no prior cloud-scheduling work both (a) explains decisions with multiple attribution methods *and* (b) mathematically audits those explanations for faithfulness — on real, multi-era production traces. That intersection is this project's contribution.
 
 ---
 

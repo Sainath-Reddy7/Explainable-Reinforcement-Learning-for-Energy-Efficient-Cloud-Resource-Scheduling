@@ -1,0 +1,48 @@
+PUBLICATION RIGOR SUMMARY  (seeds: [0, 1, 2, 3, 4])
+========================================================================
+
+--- Multiseed mean +/- std (across loads) ---
+FCFS                 mk=    1625+-   209  cost=   39194+-   505  miss=  5.1+- 2.4%  DI= 5.74+-1.62
+RoundRobin           mk=    1625+-   209  cost=   39194+-   505  miss=  5.1+- 2.4%  DI= 5.74+-1.62
+GreedyLeastLoaded    mk=    1257+-    56  cost=   41997+-  1259  miss=  0.1+- 0.1%  DI= 2.74+-0.55
+Min-Min              mk=    1194+-    18  cost=   32036+-   680  miss=  0.0+- 0.0%  DI= 4.29+-0.06
+Max-Min              mk=    1194+-    18  cost=   45019+-   549  miss=  0.0+- 0.0%  DI= 1.64+-0.07
+PSO                  mk=    3054+-   134  cost=    9745+-   169  miss= 44.1+- 2.0%  DI=25.58+-1.68
+Q-learning           mk=    4235+-   330  cost=   29744+-  1122  miss= 34.2+- 4.0%  DI=25.31+-2.49
+DQN (ours)           mk=    1194+-    18  cost=   29141+-  3097  miss=  0.0+- 0.0%  DI= 0.99+-0.03
+
+--- Wilcoxon signed-rank, DQN vs baseline (p<0.05 = significant) ---
+  vs FCFS                 makespan_s           p=0.0000  -> DQN BETTER
+  vs FCFS                 cost                 p=0.0000  -> DQN BETTER
+  vs FCFS                 deadline_miss_rate   p=0.0000  -> DQN BETTER
+
+  vs RoundRobin           makespan_s           p=0.0000  -> DQN BETTER
+  vs RoundRobin           cost                 p=0.0000  -> DQN BETTER
+  vs RoundRobin           deadline_miss_rate   p=0.0000  -> DQN BETTER
+
+  vs GreedyLeastLoaded    makespan_s           p=0.0000  -> DQN BETTER
+  vs GreedyLeastLoaded    cost                 p=0.0000  -> DQN BETTER
+  vs GreedyLeastLoaded    deadline_miss_rate   p=0.0001  -> DQN BETTER
+
+  vs Min-Min              makespan_s           p=n/a
+  vs Min-Min              cost                 p=0.0004  -> DQN BETTER
+  vs Min-Min              deadline_miss_rate   p=n/a
+
+  vs Max-Min              makespan_s           p=n/a
+  vs Max-Min              cost                 p=0.0000  -> DQN BETTER
+  vs Max-Min              deadline_miss_rate   p=n/a
+
+  vs PSO                  makespan_s           p=0.0000  -> DQN BETTER
+  vs PSO                  cost                 p=0.0000  -> DQN WORSE
+  vs PSO                  deadline_miss_rate   p=0.0000  -> DQN BETTER
+
+  vs Q-learning           makespan_s           p=0.0000  -> DQN BETTER
+  vs Q-learning           cost                 p=0.2209  -> n.s.
+  vs Q-learning           deadline_miss_rate   p=0.0000  -> DQN BETTER
+
+--- Ablation (seed 0, DQN only, avg across loads) ---
+full         mk=    1197 (      +0)  cost=   29086 (      +0)  miss=  0.0% ( +0.0pp)
+nodueling    mk=    1197 (      +0)  cost=   39089 (  +10003)  miss=  0.0% ( +0.0pp)
+nomask       mk=    1201 (      +4)  cost=   39765 (  +10679)  miss=  0.0% ( +0.0pp)
+noper        mk=    1197 (      +0)  cost=   28576 (    -510)  miss=  0.0% ( +0.0pp)
+noshaping    mk=    1197 (      +0)  cost=   30236 (   +1150)  miss=  0.0% ( +0.0pp)

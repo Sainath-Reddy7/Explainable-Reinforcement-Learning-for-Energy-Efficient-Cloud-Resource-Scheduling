@@ -125,7 +125,8 @@ class CloudSchedulingEnv:
     MEM_MAX = 0.05
 
     def __init__(self, task_pool, num_vms=8, num_tasks=200, seed=0,
-                 adaptive_weights=True, vm_seed=42, deadline_tightness=1.0):
+                 adaptive_weights=True, vm_seed=42, deadline_tightness=1.0,
+                 use_shaping=True):
         self.pool = task_pool
         self.pool_n = len(next(iter(task_pool.values())))
         self.num_vms = num_vms
@@ -133,6 +134,7 @@ class CloudSchedulingEnv:
         self.seed = seed
         self.adaptive_weights = adaptive_weights
         self.deadline_tightness = deadline_tightness
+        self.use_shaping = use_shaping
         self.gamma_shaping = 0.95   # discount for potential-based shaping
         self._pre_step_loads = None
         self.vms = make_default_vm_pool(num_vms, seed=vm_seed)
@@ -329,8 +331,9 @@ class CloudSchedulingEnv:
         # providing a dense gradient signal between sparse deadline events.
         phi_before = self._potential(before_step=True)
         phi_after = self._potential(before_step=False)
-        shaped = self.gamma_shaping * phi_after - phi_before
-        reward += 0.5 * shaped
+        if self.use_shaping:
+            shaped = self.gamma_shaping * phi_after - phi_before
+            reward += 0.5 * shaped
 
         if not deadline_met:
             vm.deadline_misses += 1

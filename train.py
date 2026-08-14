@@ -34,7 +34,8 @@ def train_dqn(task_pool, cfg, seed=0, verbose=True):
                              seed=seed,
                              adaptive_weights=env_cfg["adaptive_weights"],
                              vm_seed=env_cfg["vm_seed"],
-                             deadline_tightness=env_cfg.get("deadline_tightness", 1.0))
+                             deadline_tightness=env_cfg.get("deadline_tightness", 1.0),
+                             use_shaping=env_cfg.get("use_shaping", True))
     agent = DQNAgent(env.state_dim, env.action_dim,
                      hidden=tuple(q_cfg["hidden"]),
                      lr=q_cfg["lr"], dropout=q_cfg["dropout"],
@@ -50,7 +51,9 @@ def train_dqn(task_pool, cfg, seed=0, verbose=True):
                      eps_start=ag_cfg["eps_start"],
                      eps_end=ag_cfg["eps_end"],
                      eps_decay=ag_cfg["eps_decay"],
-                     seed=seed)
+                     seed=seed,
+                     dueling=ag_cfg.get("dueling", True),
+                     use_mask=ag_cfg.get("use_mask", True))
     lr_decay_step = max(1, ag_cfg.get("lr_decay_steps", 20000))
 
     history = []
@@ -112,7 +115,9 @@ def evaluate_scheduler(scheduler_fn, task_pool, cfg, num_tasks, seed,
     env = CloudSchedulingEnv(task_pool,
                              num_vms=env_cfg["num_vms"],
                              num_tasks=num_tasks,
-                             seed=seed, vm_seed=vm_seed)
+                             seed=seed, vm_seed=vm_seed,
+                             deadline_tightness=env_cfg.get("deadline_tightness", 1.0),
+                             use_shaping=env_cfg.get("use_shaping", True))
     results = []
     for run in range(n_runs):
         state = env.reset(episode_seed_offset=1000 + run, num_tasks=num_tasks)
