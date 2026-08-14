@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-08-14T14:11:49.806218",
+  "timestamp": "2026-08-14T14:42:23.076097",
   "seed": 0,
   "python": "3.13.3",
   "platform": "Windows-11-10.0.26200-SP0",
   "config": {
     "seed": 0,
     "dataset": {
-      "csv_path": "../../borg_traces_data.csv",
+      "csv_path": "../borg_traces_data.csv",
       "cache_path": "results/borg_task_pool.npz",
       "pool_size": 5000,
       "keep_events": [
@@ -100,19 +100,19 @@
     }
   },
   "dataset_stats": {
-    "cpu_req_mean": 0.015743564814329147,
-    "mem_req_mean": 0.008653406985104084,
-    "duration_us_mean": 209699600.0,
-    "priority_mean": 120.82479858398438,
-    "sched_class_mean": 1.1363999843597412,
-    "coll_type_mean": 0.11460000276565552,
-    "cpu_req_std": 0.03337063640356064,
-    "mem_req_std": 0.020749934017658234,
-    "duration_us_std": 129378024.0,
-    "priority_std": 105.23421478271484,
-    "sched_class_std": 1.045081377029419,
-    "coll_type_std": 0.3185386061668396,
+    "cpu_req_mean": 0.07323800027370453,
+    "mem_req_mean": 0.006791466381400824,
+    "duration_us_mean": 5986395136.0,
+    "priority_mean": 0.0,
+    "sched_class_mean": 2.1784000396728516,
+    "coll_type_mean": 0.0,
+    "cpu_req_std": 0.12397103011608124,
+    "mem_req_std": 0.009476342238485813,
+    "duration_us_std": 13248664576.0,
+    "priority_std": 0.0,
+    "sched_class_std": 0.9076196551322937,
+    "coll_type_std": 0.0,
     "n_tasks": 5000
   },
-  "total_runtime_sec": 471.8741796016693
+  "total_runtime_sec": 477.91563153266907
 }

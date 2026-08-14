@@ -33,7 +33,8 @@ def train_dqn(task_pool, cfg, seed=0, verbose=True):
                              num_tasks=env_cfg["tasks_per_episode"],
                              seed=seed,
                              adaptive_weights=env_cfg["adaptive_weights"],
-                             vm_seed=env_cfg["vm_seed"])
+                             vm_seed=env_cfg["vm_seed"],
+                             deadline_tightness=env_cfg.get("deadline_tightness", 1.0))
     agent = DQNAgent(env.state_dim, env.action_dim,
                      hidden=tuple(q_cfg["hidden"]),
                      lr=q_cfg["lr"], dropout=q_cfg["dropout"],

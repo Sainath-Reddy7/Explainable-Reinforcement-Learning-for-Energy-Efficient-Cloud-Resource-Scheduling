@@ -91,7 +91,7 @@ def deletion_aopc(predict_fn, instance, phi, background_mean, action_idx, steps=
     all_q = predict_fn(instance[None, :])[0]
     q_spread = float(all_q.max() - all_q.min())
     denom = max(q_spread, 1e-3) * len(drops)
-    return float(np.sum(drops) / denom)
+    return float(np.clip(np.sum(drops) / denom, -5.0, 5.0))
 
 
 def insertion_aopc(predict_fn, instance, phi, background_mean, action_idx, steps=10):
@@ -103,7 +103,7 @@ def insertion_aopc(predict_fn, instance, phi, background_mean, action_idx, steps
     all_q = predict_fn(instance[None, :])[0]
     q_spread = float(all_q.max() - all_q.min())
     denom = max(q_spread, 1e-3) * len(gains)
-    return float(np.sum(gains) / denom)
+    return float(np.clip(np.sum(gains) / denom, -5.0, 5.0))
 
 
 # --------------------------------------------------------------------------- #

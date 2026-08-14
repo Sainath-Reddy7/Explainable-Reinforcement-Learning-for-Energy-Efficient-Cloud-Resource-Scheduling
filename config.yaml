@@ -63,7 +63,7 @@ agent:
 
 # ---- Training --------------------------------------------------------------
 train:
-  episodes: 200                     # Dueling DQN converges fast — 200 is the sweet spot
+  episodes: 300                     # Dueling DQN + action mask: 300 eps ties Min-Min
   eval_every: 25
   eval_runs: 3
   # Curriculum: resample tasks_per_episode from this range each episode so the

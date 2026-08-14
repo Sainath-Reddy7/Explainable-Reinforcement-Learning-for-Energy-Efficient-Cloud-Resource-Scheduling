@@ -60,16 +60,21 @@ def collect_rollout(agent, env, episode_seed_offset, n_steps=None):
     return states, actions, infos
 
 
-def main(cfg=None, seed=0):
+def main(cfg=None, seed=0, pool=None, out_dir=None):
     t_start = time.time()
     cfg = cfg or load_config()
+    global OUT_DIR
+    if out_dir is not None:
+        OUT_DIR = Path(out_dir)
+        OUT_DIR.mkdir(exist_ok=True)
 
     # ---- 1. dataset --------------------------------------------------------
     ds = cfg["dataset"]
     pool_path = HERE / ds["csv_path"] if not os.path.isabs(ds["csv_path"]) else Path(ds["csv_path"])
     cache_path = HERE / ds["cache_path"] if not os.path.isabs(ds["cache_path"]) else Path(ds["cache_path"])
-    pool = load_task_pool(pool_path, cache_path, ds["keep_events"],
-                          ds["min_duration_us"], ds["pool_size"], seed=seed)
+    if pool is None:
+        pool = load_task_pool(pool_path, cache_path, ds["keep_events"],
+                              ds["min_duration_us"], ds["pool_size"], seed=seed)
     pool_stats = pool_summary(pool)
     print(f"[run] Borg pool ready: {pool_stats['n_tasks']} tasks")
 
@@ -86,7 +91,8 @@ def main(cfg=None, seed=0):
     env_cfg = cfg["env"]
     env = CloudSchedulingEnv(pool, num_vms=env_cfg["num_vms"],
                              num_tasks=env_cfg["tasks_per_episode"],
-                             seed=seed, vm_seed=env_cfg["vm_seed"])
+                             seed=seed, vm_seed=env_cfg["vm_seed"],
+                             deadline_tightness=env_cfg.get("deadline_tightness", 1.0))
 
     bg_states, _, _ = collect_rollout(agent, env, episode_seed_offset=9000)
     background = np.array(bg_states[-cfg["xai"]["kernelshap"]["n_background"]:])
@@ -96,7 +102,11 @@ def main(cfg=None, seed=0):
     n_exp = cfg["xai"]["n_explained_decisions"]
     sample_idx = np.linspace(0, len(states) - 1, n_exp).astype(int)
 
-    ksh = KernelSHAPExplainer(agent.q.predict, background,
+    # The deployed policy = Q + safety mask. All XAI methods and trust metrics
+    # score THIS function so explanations match the actions actually taken.
+    masked_predict = lambda X: agent.q.predict(X) + agent.action_mask(X)
+
+    ksh = KernelSHAPExplainer(masked_predict, background,
                               n_coalitions=cfg["xai"]["kernelshap"]["n_coalitions"],
                               n_bg_draws=cfg["xai"]["kernelshap"]["n_bg_draws"],
                               seed=seed)
@@ -126,7 +136,7 @@ def main(cfg=None, seed=0):
         phis["grad_x_input"].append(phi_g)
 
         # Occlusion
-        t0 = time.time(); phi_o = occlusion_explainer(agent.q.predict, s, a, background_mean, occ_window); latencies["occlusion"].append(time.time() - t0)
+        t0 = time.time(); phi_o = occlusion_explainer(masked_predict, s, a, background_mean, occ_window); latencies["occlusion"].append(time.time() - t0)
         phis["occlusion"].append(phi_o)
 
         # Integrated Gradients
@@ -136,10 +146,10 @@ def main(cfg=None, seed=0):
         # trust metrics for each method
         for m in methods:
             phi_m = phis[m][-1]
-            fidelities[m].append(top_k_fidelity(agent.q.predict, s, phi_m, background_mean, a))
-            del_aopcs[m].append(deletion_aopc(agent.q.predict, s, phi_m, background_mean, a))
-            ins_aopcs[m].append(insertion_aopc(agent.q.predict, s, phi_m, background_mean, a))
-            infids[m].append(infidelity(agent.q.predict, agent.q, s, phi_m, a, background_mean, seed=seed + count))
+            fidelities[m].append(top_k_fidelity(masked_predict, s, phi_m, background_mean, a))
+            del_aopcs[m].append(deletion_aopc(masked_predict, s, phi_m, background_mean, a))
+            ins_aopcs[m].append(insertion_aopc(masked_predict, s, phi_m, background_mean, a))
+            infids[m].append(infidelity(masked_predict, agent.q, s, phi_m, a, background_mean, seed=seed + count))
 
         # dashboard entry (use KernelSHAP as the headline explanation)
         vm_c = rollup_vm_contributions(phis["kernelshap"][-1], env.feature_names, env_cfg["num_vms"])

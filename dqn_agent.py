@@ -202,10 +202,42 @@ class DQNAgent:
         self.rng = np.random.default_rng(seed)
 
     # ---- action selection --------------------------------------------------
-    def act(self, state, greedy=False):
+    def act(self, state, greedy=False, use_mask=True):
+        """Pick a VM. When ``use_mask``, VMs whose utilization feature exceeds
+        0.9 get their Q-value set to -inf before the argmax — a safety mask
+        that mechanically prevents the policy from piling onto a saturated
+        VM. (The mask is a pure function of the observed state, so it is
+        available to exploration, evaluation and the XAI layer alike.)
+        """
+        state = np.asarray(state, dtype=np.float32)
+        q = np.asarray(self.q.predict(state)).copy()
+        if use_mask:
+            q = q + self.action_mask(state)
         if (not greedy) and self.rng.random() < self.eps:
-            return int(self.rng.integers(self.action_dim))
-        return int(np.argmax(self.q.predict(state)))
+            # explore only among unmasked actions
+            allowed = np.where(q > -1e8)[0]
+            if len(allowed) == 0:
+                allowed = np.arange(self.action_dim)
+            return int(self.rng.choice(allowed))
+        return int(np.argmax(q))
+
+    @staticmethod
+    def action_mask(state, task_dim=5, vm_feat_dim=5, threshold=0.9):
+        """Return -1e9 for overloaded VMs (util feature > threshold), else 0.
+
+        Works on a single state (d,) or a batch (n, d). The utilization
+        feature of VM i sits at index task_dim + i*vm_feat_dim.
+        """
+        state = np.asarray(state, dtype=np.float32)
+        single = state.ndim == 1
+        if single:
+            state = state[None, :]
+        utils = state[:, task_dim::vm_feat_dim]      # (n, num_vms)
+        mask = np.where(utils > threshold, -1e9, 0.0)
+        # safety: if EVERYTHING is overloaded, don't mask anything
+        all_masked = (mask < 0).all(axis=1, keepdims=True)
+        mask = np.where(all_masked, 0.0, mask)
+        return mask[0] if single else mask
 
     # ---- memory ------------------------------------------------------------
     def remember(self, s, a, r, s2, done, td_error=None):
