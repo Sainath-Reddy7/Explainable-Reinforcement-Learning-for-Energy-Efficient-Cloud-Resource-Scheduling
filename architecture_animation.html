@@ -112,7 +112,7 @@
   <div class="phase-label">Phase 3 · Double DQN Decision</div>
   <div class="row" id="row3">
     <div class="node" id="n6"><div class="emoji">🧠</div><div class="name">Q-Network (3-layer MLP)</div>
-      <div class="desc">45 → 128 → 64 → 32 → 8 · ReLU · dropout · pure NumPy</div><div class="tag">Adam optimizer</div></div>
+      <div class="desc">Dueling: 45 → 128 → 64 backbone, then value (32→1) + advantage (32→8) streams</div><div class="tag">Adam optimizer</div></div>
     <div class="arrow" id="a4">→</div>
     <div class="node" id="n7"><div class="emoji">⚡</div><div class="name">8 Q-Values</div>
       <div class="desc">One score per candidate VM · argmax = chosen action</div><div class="tag">Double DQN</div></div>
@@ -131,7 +131,7 @@
       <div class="desc">Online selects action · target evaluates · soft Polyak update</div><div class="tag">τ=0.005</div></div>
     <div class="arrow" id="a7">→</div>
     <div class="node" id="n11"><div class="emoji">📈</div><div class="name">Converged Policy</div>
-      <div class="desc">500 episodes · beats heuristics on cost + QoS</div><div class="tag">trained</div></div>
+      <div class="desc">300 episodes · ties best makespan, beats Min-Min on cost</div><div class="tag">trained</div></div>
   </div>
 
   <!-- PHASE 5: XAI -->
@@ -198,8 +198,8 @@ const steps = [
    body:'Sample minibatch, compute Double-DQN targets, take weighted gradient step, update priorities, then soft-update target network via Polyak averaging (τ=0.005) for smooth target drift.',
    formula:'θ_target ← τ·θ_online + (1-τ)·θ_target'},
   {nodes:[11], arrows:[9], title:'📈 Converged Policy',
-   body:'After 500 episodes with curriculum learning (variable batch sizes), the DQN learns to balance cost vs deadlines vs load — beating 7 baseline schedulers on the real Borg workloads.',
-   formula:'π* = argmax_π E[Σ γᵗ r_t]  over 500 episodes'},
+   body:'After 300 episodes with curriculum learning (variable batch sizes), the DQN learns to balance cost vs deadlines vs load — beating 7 baseline schedulers on the real Borg workloads.',
+   formula:'π* = argmax_π E[Σ γᵗ r_t]  over 300 episodes'},
   {nodes:[12,13,14,15], arrows:[], title:'🔍 4 XAI Methods Explain Every Decision',
    body:'For each scheduling choice, FOUR attribution methods compute per-feature importance: <b>KernelSHAP</b> (coalition sampling + WLS), <b>Gradient×Input</b> (exact gradient), <b>Occlusion</b> (window sliding), <b>Integrated Gradients</b> (axiom-satisfying path integral).',
    formula:'φ_i = contribution of feature i to Q(s, chosen_VM)'},

@@ -257,12 +257,15 @@ phases = [
      "concurrently via time-sharing (Borg-accurate model). Tasks that oversubscribe a VM queue up, "
      "producing distinct makespan/miss-rate differences across schedulers."),
     ("Phase 3: Double DQN Decision Engine",
-     "A 3-layer MLP (45→128→64→32→8) in pure NumPy with manual backprop + Adam. Double DQN "
+     "A Dueling architecture in pure NumPy with manual backprop + Adam: a shared backbone "
+     "(45→128→64) splits into a value stream (→32→1) and an advantage stream (→32→8), combined "
+     "as Q = V + (A − Ā). A state-derived safety mask excludes VMs above 90% utilization before "
+     "the argmax. Double DQN "
      "separates action selection from evaluation to reduce Q-overestimation. Outputs 8 Q-values "
      "(one per VM); argmax = chosen VM."),
     ("Phase 4: Training Loop (PER + Target Net)",
      "50K-capacity SumTree buffer with Prioritized Experience Replay (high-TD-error transitions "
-     "sampled more often). Soft Polyak target updates (τ=0.005) for stable learning. 150 episodes "
+     "sampled more often). Soft Polyak target updates (τ=0.005) for stable learning. 300 episodes "
      "with curriculum-based task batching."),
     ("Phase 5: Explainability (4 Methods)",
      "For each decision, FOUR attribution methods compute per-feature importance: KernelSHAP "
@@ -386,7 +389,7 @@ reasons = [
      "makes our results credible and citable — the CPU/memory/duration distributions reflect "
      "genuine production cloud workloads."),
     ("2. The DQN is built from scratch in pure NumPy",
-     "We did not use PyTorch or TensorFlow. The 3-layer neural network, backpropagation, Adam "
+     "We did not use PyTorch or TensorFlow. The dueling neural network, backpropagation, Adam "
      "optimizer, Double DQN logic, and Prioritized Experience Replay SumTree are all hand-implemented. "
      "This demonstrates deep understanding of the underlying mathematics, not just API calls."),
     ("3. Four XAI methods, not just one",
@@ -451,7 +454,7 @@ files_data = [
     ["config.yaml", "All hyperparameters (episodes, learning rate, buffer size, etc.)"],
     ["borg_loader.py", "Parse & cache Google Borg CSV → task pool"],
     ["env.py", "Cloud-edge environment with parallel VM execution model"],
-    ["qnetwork.py", "3-layer MLP Q-network in pure NumPy"],
+    ["qnetwork.py", "Dueling Q-network (value + advantage streams) in pure NumPy"],
     ["dqn_agent.py", "Double DQN + PER (SumTree) + soft target updates"],
     ["baselines.py", "7 schedulers: FCFS, RR, Greedy, Min-Min, Max-Min, PSO, Q-table"],
     ["explainability.py", "4 XAI methods: KernelSHAP, Grad×Input, Occlusion, IG"],
