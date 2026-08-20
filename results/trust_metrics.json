@@ -11,7 +11,7 @@
     "consistency": 0.1372486473976774,
     "stability": 20300158.531278286,
     "n_consistency_pairs": 29,
-    "mean_latency_sec": 0.05389887491861979
+    "mean_latency_sec": 0.08895246982574463
   },
   "grad_x_input": {
     "fidelity": {
@@ -25,7 +25,7 @@
     "consistency": 0.9998444709284552,
     "stability": 28466.579833984375,
     "n_consistency_pairs": 29,
-    "mean_latency_sec": 0.00015880664189656576
+    "mean_latency_sec": 0.0002470572789510091
   },
   "occlusion": {
     "fidelity": {
@@ -33,13 +33,13 @@
       "top5_action_match": 0.2,
       "top10_action_match": 0.23333333333333334
     },
-    "deletion_aopc": 1.1291871123146495,
-    "insertion_aopc": 1.0483661341334607,
+    "deletion_aopc": 1.1199511498731656,
+    "insertion_aopc": 1.0342268823735081,
     "infidelity": 2.3654664437915858,
     "consistency": 0.7568460651512804,
     "stability": 1.962747051798064,
     "n_consistency_pairs": 29,
-    "mean_latency_sec": 0.0032851338386535645
+    "mean_latency_sec": 0.0054836312929789225
   },
   "integrated_gradients": {
     "fidelity": {
@@ -53,7 +53,7 @@
     "consistency": 0.8910394948104332,
     "stability": 16284.720232388068,
     "n_consistency_pairs": 29,
-    "mean_latency_sec": 0.005260856946309408
+    "mean_latency_sec": 0.008830225467681885
   },
-  "raw_inference_latency_sec": 4.633665084838867e-05
+  "raw_inference_latency_sec": 7.796287536621094e-05
 }

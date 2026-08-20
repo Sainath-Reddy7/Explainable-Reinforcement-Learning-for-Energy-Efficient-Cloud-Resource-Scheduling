@@ -10,7 +10,7 @@ seed: 0
 # ---- Dataset ---------------------------------------------------------------
 dataset:
   # Path to the raw Google Borg trace CSV (328 MB).
-  csv_path: "../borg_traces_data.csv"
+  csv_path: "../../borg_traces_data.csv"   # relative to this project folder
   # Cache file for the cleaned task pool (rebuilt only when csv mtime changes).
   cache_path: "results/borg_task_pool.npz"
   # How many cleaned tasks to keep in the pool.  Larger = more diverse but
