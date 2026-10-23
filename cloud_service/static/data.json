@@ -1,0 +1,305 @@
+{
+ "kpi": {
+  "cost_save": 8.6,
+  "energy_save": 11.4,
+  "miss": 0.0,
+  "di": 1.0,
+  "traces": 3,
+  "seeds": "5 / 10 / 5",
+  "audit_decisions": 1000
+ },
+ "borg": [
+  {
+   "name": "FCFS",
+   "makespan": 1572,
+   "cost": 38972,
+   "miss": 4.4,
+   "di": 5.45
+  },
+  {
+   "name": "RoundRobin",
+   "makespan": 1572,
+   "cost": 38972,
+   "miss": 4.4,
+   "di": 5.45
+  },
+  {
+   "name": "Greedy",
+   "makespan": 1258,
+   "cost": 41747,
+   "miss": 0.1,
+   "di": 2.75
+  },
+  {
+   "name": "Min-Min",
+   "makespan": 1192,
+   "cost": 31823,
+   "miss": 0.0,
+   "di": 4.28
+  },
+  {
+   "name": "Max-Min",
+   "makespan": 1192,
+   "cost": 44701,
+   "miss": 0.0,
+   "di": 1.65
+  },
+  {
+   "name": "PSO",
+   "makespan": 1475,
+   "cost": 13906,
+   "miss": 4.1,
+   "di": 8.01
+  },
+  {
+   "name": "Tabular Q",
+   "makespan": 4158,
+   "cost": 30510,
+   "miss": 31.8,
+   "di": 24.8
+  },
+  {
+   "name": "PPO",
+   "makespan": 1192,
+   "cost": 31504,
+   "miss": 0.0,
+   "di": 1.19
+  },
+  {
+   "name": "DQN (ours)",
+   "makespan": 1192,
+   "cost": 29100,
+   "miss": 0.0,
+   "di": 1.0
+  }
+ ],
+ "kth": [
+  {
+   "name": "FCFS",
+   "makespan": 751583,
+   "cost": 860558,
+   "miss": 8.9,
+   "di": 33.59
+  },
+  {
+   "name": "RoundRobin",
+   "makespan": 751583,
+   "cost": 860558,
+   "miss": 8.9,
+   "di": 33.59
+  },
+  {
+   "name": "Greedy",
+   "makespan": 469743,
+   "cost": 958408,
+   "miss": 5.6,
+   "di": 15.8
+  },
+  {
+   "name": "Min-Min",
+   "makespan": 4622010,
+   "cost": 571128,
+   "miss": 37.2,
+   "di": 150.76
+  },
+  {
+   "name": "Max-Min",
+   "makespan": 496861,
+   "cost": 958809,
+   "miss": 5.6,
+   "di": 16.4
+  },
+  {
+   "name": "PSO",
+   "makespan": 383185,
+   "cost": 582847,
+   "miss": 4.9,
+   "di": 32.01
+  },
+  {
+   "name": "Tabular Q",
+   "makespan": 7020428,
+   "cost": 297750,
+   "miss": 69.7,
+   "di": 188.78
+  },
+  {
+   "name": "PPO",
+   "makespan": 635896,
+   "cost": 911264,
+   "miss": 9.3,
+   "di": 26.69
+  },
+  {
+   "name": "DQN (ours)",
+   "makespan": 618358,
+   "cost": 1067663,
+   "miss": 11.9,
+   "di": 26.42
+  }
+ ],
+ "ctc": [
+  {
+   "name": "FCFS",
+   "makespan": 304716,
+   "cost": 1460050,
+   "miss": 1.8,
+   "di": 13.82
+  },
+  {
+   "name": "RoundRobin",
+   "makespan": 304716,
+   "cost": 1460050,
+   "miss": 1.8,
+   "di": 13.82
+  },
+  {
+   "name": "Greedy",
+   "makespan": 146143,
+   "cost": 1652899,
+   "miss": 0.0,
+   "di": 5.65
+  },
+  {
+   "name": "Min-Min",
+   "makespan": 643867,
+   "cost": 1478735,
+   "miss": 5.2,
+   "di": 29.31
+  },
+  {
+   "name": "Max-Min",
+   "makespan": 132579,
+   "cost": 1607806,
+   "miss": 0.0,
+   "di": 5.15
+  },
+  {
+   "name": "PSO",
+   "makespan": 306749,
+   "cost": 509223,
+   "miss": 2.2,
+   "di": 27.42
+  },
+  {
+   "name": "Tabular Q",
+   "makespan": 1478661,
+   "cost": 982109,
+   "miss": 38.0,
+   "di": 64.63
+  },
+  {
+   "name": "PPO",
+   "makespan": 172596,
+   "cost": 1656488,
+   "miss": 1.1,
+   "di": 9.23
+  },
+  {
+   "name": "DQN (ours)",
+   "makespan": 176877,
+   "cost": 1666383,
+   "miss": 0.8,
+   "di": 7.75
+  }
+ ],
+ "trust": [
+  {
+   "name": "KernelSHAP",
+   "del": 0.82,
+   "top10": 0,
+   "cons": 0.06,
+   "infid": "\u2014",
+   "ms": 19.41
+  },
+  {
+   "name": "Grad\u00d7Input",
+   "del": 0.16,
+   "top10": 0,
+   "cons": 1.0,
+   "infid": "\u2014",
+   "ms": 0.08
+  },
+  {
+   "name": "Occlusion",
+   "del": 1.12,
+   "top10": 0,
+   "cons": 0.87,
+   "infid": "\u2014",
+   "ms": 1.59
+  },
+  {
+   "name": "Int. Gradients",
+   "del": 0.04,
+   "top10": 0,
+   "cons": 0.78,
+   "infid": "\u2014",
+   "ms": 3.41
+  }
+ ],
+ "scale": [
+  {
+   "vms": 8,
+   "dqn_us": 198,
+   "pso_ms": 41
+  },
+  {
+   "vms": 32,
+   "dqn_us": 205,
+   "pso_ms": 80
+  },
+  {
+   "vms": 128,
+   "dqn_us": 278,
+   "pso_ms": 257
+  }
+ ],
+ "drift": [
+  {
+   "expl": "grad_x_input",
+   "kind": "capacity_loss",
+   "alert": 550,
+   "fa": 0
+  },
+  {
+   "expl": "grad_x_input",
+   "kind": "priority_shift",
+   "alert": 550,
+   "fa": 0
+  },
+  {
+   "expl": "occlusion",
+   "kind": "cost_surge",
+   "alert": 550,
+   "fa": 0
+  },
+  {
+   "expl": "occlusion",
+   "kind": "priority_shift",
+   "alert": 550,
+   "fa": 0
+  }
+ ],
+ "operator": [
+  {
+   "name": "none",
+   "auc": 0.5,
+   "net": 8
+  },
+  {
+   "name": "attribution_g",
+   "auc": 0.53,
+   "net": 62
+  },
+  {
+   "name": "attribution",
+   "auc": 0.89,
+   "net": 115
+  },
+  {
+   "name": "counterfactual",
+   "auc": 0.73,
+   "net": 186
+  }
+ ]
+}

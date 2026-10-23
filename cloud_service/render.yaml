@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: rlmots-xai-scheduler
+    runtime: docker
+    plan: free
+    autoDeploy: false
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"

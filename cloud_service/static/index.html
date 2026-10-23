@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RL-MOTS-XAI — Trust-Audited Explainable Cloud Scheduling</title>
+<style>
+  :root{
+    --maroon:#7a1f2b; --ink:#141b24; --mut:#5b6470; --line:#e3e8ee;
+    --bg:#fafbfc; --card:#ffffff; --teal:#0e8f8f; --gold:#b97a14;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:var(--bg);color:var(--ink);line-height:1.55}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  header{background:var(--maroon);color:#fff;padding:46px 0 38px}
+  header .kick{font-size:13px;letter-spacing:.18em;text-transform:uppercase;opacity:.85}
+  header h1{font-size:34px;font-weight:600;margin:10px 0 8px;max-width:900px}
+  header p.sub{opacity:.92;max-width:820px}
+  header .meta{margin-top:16px;font-size:14px;opacity:.9}
+  h2{font-size:22px;margin:44px 0 6px;color:var(--maroon)}
+  h2 + p.lead{color:var(--mut);margin-bottom:18px;max-width:820px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:26px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .kpi b{display:block;font-size:26px;color:var(--maroon)}
+  .kpi span{font-size:13px;color:var(--mut)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:16px}
+  .traces{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .trace h3{font-size:15px;color:var(--mut);font-weight:600;margin-bottom:10px}
+  .bar-row{display:grid;grid-template-columns:110px 1fr 70px;align-items:center;gap:8px;font-size:13px;margin:5px 0}
+  .bar-row .nm{color:var(--ink);text-align:right}
+  .bar{background:var(--line);border-radius:4px;height:15px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--teal)}
+  .bar-row.ours .bar i{background:var(--maroon)}
+  .bar-row.ours .nm{font-weight:700}
+  .bar-row .val{color:var(--mut);font-variant-numeric:tabular-nums}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);text-align:left;padding:8px 10px;border-bottom:2px solid var(--ink)}
+  td{padding:8px 10px;border-bottom:1px solid var(--line)}
+  tr.ours td{font-weight:700;color:var(--maroon)}
+  .pos{display:inline-block;background:#eefaf2;color:#14663a;border-radius:20px;padding:1px 9px;font-size:12px}
+  .neg{display:inline-block;background:#fdeeee;color:#8c2222;border-radius:20px;padding:1px 9px;font-size:12px}
+  .filters{margin:12px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:14px}
+  select{font-family:inherit;font-size:14px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff}
+  .dec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+  .dec{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:#fff}
+  .dec .hd{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
+  .dec .vm{font-weight:700;color:var(--maroon)}
+  .feat{font-size:12.5px;color:var(--mut);display:flex;justify-content:space-between;border-top:1px dashed var(--line);padding:3px 0}
+  .feat b{color:var(--ink);font-weight:600}
+  .loop{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .loop .card{margin-top:0}
+  .loop b{color:var(--maroon)}
+  footer{margin:50px 0 30px;padding-top:18px;border-top:1px solid var(--line);color:var(--mut);font-size:14px}
+  footer a{color:var(--maroon)}
+  .pill{font-size:12px;background:#f4e9ea;color:var(--maroon);border-radius:20px;padding:2px 10px;display:inline-block;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="kick">Course project · Introduction to Cloud Computing · Team 16</div>
+    <h1>Explainable Reinforcement Learning for Energy-Efficient Cloud Resource Scheduling</h1>
+    <p class="sub">A Dueling Double DQN scheduler trained on real production traces, whose every decision
+    carries four attribution methods, whose explanations are audited by six trust metrics, and whose
+    explanations then go to work — detecting drift, pricing counterfactuals, and guiding fine-tuning.</p>
+    <div class="meta">B Sainath Reddy · K Pushpak Siva Sai · P Manohar · B Shanmukh · Keerthika (guide)
+    &nbsp;—&nbsp; School of AI, Amrita Vishwa Vidyapeetham, Coimbatore</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="kpis" id="kpis"></div>
+
+  <h2>One scheduler, three production regimes</h2>
+  <p class="lead">Cost on the Google Borg traces (lower is better). The maroon bar is our DQN.
+  Rankings genuinely invert across regimes — we report that rather than hide it.</p>
+  <div class="card"><div class="traces" id="traces"></div></div>
+
+  <h2>Do the explanations survive an audit?</h2>
+  <p class="lead" id="trust-lead"></p>
+  <div class="card" style="overflow-x:auto"><table id="trust"></table></div>
+
+  <h2>Read the scheduler's mind, decision by decision</h2>
+  <p class="lead">Each card is one dispatch decision from the audited Borg rollout: where the task went,
+  whether the deadline held, and the three features the attribution held most responsible.</p>
+  <div class="filters">
+    <label>VM <select id="f-vm"><option value="">all</option></select></label>
+    <label>Deadline <select id="f-met"><option value="">all</option><option value="1">met</option><option value="0">missed</option></select></label>
+    <span id="f-count" style="color:var(--mut)"></span>
+  </div>
+  <div class="dec-grid" id="decisions"></div>
+
+  <h2 id="live-h" style="display:none">Try the live scheduler</h2>
+  <p class="lead" id="live-p" style="display:none">This deployment runs the actual trained
+  Dueling Double DQN in the cloud — every click dispatches one real task from the Borg pool,
+  computed live, with its safety mask and Gradient×Input attribution.</p>
+  <div class="card" id="live-card" style="display:none">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+      <button id="live-btn" style="font-family:inherit;font-size:15px;padding:10px 18px;background:var(--maroon);color:#fff;border:0;border-radius:8px;cursor:pointer">Dispatch next task →</button>
+      <div id="live-out" style="flex:1;min-width:260px;font-size:14px;color:var(--mut)">Press the button — the decision returns in a few milliseconds.</div>
+    </div>
+  </div>
+
+  <h2>The explanations go to work</h2>
+  <div class="loop" id="loop"></div>
+
+  <footer>
+    Numbers on this page regenerate directly from the released result JSONs — the site cannot drift from
+    the paper. Full artifact:
+    <a href="https://github.com/Sainath-Reddy7/Explainable-Reinforcement-Learning-for-Energy-Efficient-Cloud-Resource-Scheduling">GitHub repository</a>.
+    <span class="pill">Pure NumPy · no deep-learning framework · one CPU</span>
+  </footer>
+</div>
+
+<script>
+const fmt = n => n.toLocaleString('en-US');
+
+async function boot(){
+  const [D, DEC] = await Promise.all([
+    fetch('data.json').then(r=>r.json()),
+    fetch('decisions.json').then(r=>r.json())
+  ]);
+
+  // KPIs
+  const k = D.kpi;
+  document.getElementById('kpis').innerHTML = [
+    [k.cost_save+'%', 'cheaper than Min-Min at equal makespan (Borg)'],
+    [k.miss.toFixed(1)+'%', 'deadline misses — tied with the best'],
+    [k.energy_save+'%', 'less energy than Min-Min'],
+    ['DI '+k.di.toFixed(2), 'lowest imbalance of nine schedulers'],
+    [k.traces+' traces', 'Borg · KTH · CTC ('+k.seeds+' seeds)'],
+    [fmt(k.audit_decisions), 'decisions audited end-to-end'],
+  ].map(x=>`<div class="kpi"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
+
+  // trace panels
+  const mk = (title, rows, key, unit, max) => `
+    <div class="trace"><h3>${title}</h3>` +
+    rows.map(r=>{
+      const w = Math.max(2, 100*r[key]/max);
+      return `<div class="bar-row ${r.name.includes('DQN')?'ours':''}">
+        <span class="nm">${r.name}</span>
+        <span class="bar"><i style="width:${w}%"></i></span>
+        <span class="val">${fmt(r[key])}${unit}</span></div>`;
+    }).join('') + '</div>';
+  const costMax = t => Math.max(...t.map(r=>r.cost));
+  document.getElementById('traces').innerHTML =
+    mk('Google Borg (5 seeds) — cost, USD', D.borg, 'cost', '', costMax(D.borg)) +
+    mk('KTH SP2 (10 seeds, overloaded) — cost, USD', D.kth, 'cost', '', costMax(D.kth)) +
+    mk('CTC SP2 (5 seeds) — cost, USD', D.ctc, 'cost', '', costMax(D.ctc));
+
+  // trust table
+  document.getElementById('trust-lead').textContent =
+    'Six trust metrics over '+fmt(k.audit_decisions)+' audited decisions under the decomposed protocol. '+
+    'Deletion AOPC: higher = more faithful. No method wins everything — that is the finding.';
+  document.getElementById('trust').innerHTML =
+    '<tr><th>Method</th><th>Deletion AOPC ↑</th><th>Top-10 fidelity</th><th>Consistency</th><th>Latency (ms)</th></tr>' +
+    D.trust.map(t=>`<tr class="${t.name==='Occlusion'?'ours':''}">
+      <td>${t.name}</td><td>${t.del}</td><td>${t.top10}</td><td>${t.cons}</td><td>${t.ms}</td></tr>`).join('');
+
+  // decisions
+  const vms = [...new Set(DEC.map(d=>d.vm))].sort((a,b)=>a-b);
+  document.getElementById('f-vm').innerHTML += vms.map(v=>`<option value="${v}">VM ${v}</option>`).join('');
+  const grid = document.getElementById('decisions');
+  function render(){
+    const fv = document.getElementById('f-vm').value;
+    const fm = document.getElementById('f-met').value;
+    const rows = DEC.filter(d=>(!fv||d.vm==+fv)&&(!fm||d.met==(fm==='1')));
+    document.getElementById('f-count').textContent = rows.length+' of '+DEC.length+' decisions';
+    grid.innerHTML = rows.slice(0,48).map(d=>`
+      <div class="dec">
+        <div class="hd"><span>step ${d.step}</span><span class="vm">VM ${d.vm}</span></div>
+        <div style="font-size:13px;margin-bottom:6px">
+          ${d.met?'<span class="pos">deadline met</span>':'<span class="neg">missed</span>'}
+          &nbsp; $${fmt(d.cost)} · ${d.wh} Wh</div>
+        ${d.top.map(t=>`<div class="feat"><b>${t.f.replace(/_/g,' ')}</b><span>φ ${t.phi>0?'+':''}${t.phi}</span></div>`).join('')}
+      </div>`).join('');
+  }
+  document.getElementById('f-vm').onchange = render;
+  document.getElementById('f-met').onchange = render;
+  render();
+
+  // loop cards
+  const driftOK = D.drift.length;
+  const bestAUC = Math.max(...D.operator.map(o=>o.auc||0));
+  const s = D.scale, big = s[s.length-1];
+  document.getElementById('loop').innerHTML = [
+    ['Drift detection', `Attribution-drift monitoring caught every injected infrastructure change within about one 50-decision window — with <b>zero</b> false alarms on clean rollouts.`],
+    ['Counterfactual margins', `Every audited decision reports the minimal feature change that would have flipped the VM choice — operators see how close each call was.`],
+    ['Guided fine-tuning', `Explanation-weighted replay improved both audit faithfulness and deadline compliance, verified against a <b>matched control</b>, not a weak baseline.`],
+    ['Operator value', `In the simulated operator study, counterfactual explanations carried the highest override value (risk-calibration AUC <b>${bestAUC.toFixed(2)}</b>).`],
+    ['Scales with the fleet', `From ${s[0].vms} to ${big.vms} VMs the DQN's decision stays at ${s[0].dqn_us}–${big.dqn_us} µs, while PSO planning grows from ${s[0].pso_ms} ms to ${big.pso_ms} ms.`],
+  ].map(x=>`<div class="card"><b>${x[0]}</b><div style="font-size:14px;color:var(--mut);margin-top:6px">${x[1]}</div></div>`).join('');
+}
+boot();
+
+// Live panel — only on deployments that run the scheduler API
+fetch('/api/health').then(r=>r.json()).then(h=>{
+  if(!h.ok) return;
+  ['live-h','live-p','live-card'].forEach(id=>document.getElementById(id).style.display='');
+  document.getElementById('live-btn').onclick = async ()=>{
+    const d = await fetch('/api/decision').then(r=>r.json());
+    const feats = d.top_features.slice(0,3)
+      .map(t=>`${t.feature.replace(/_/g,' ')} (φ ${t.phi>0?'+':''}${t.phi})`).join(' · ');
+    document.getElementById('live-out').innerHTML =
+      `<b style="color:var(--maroon)">Task ${d.step} → VM ${d.chosen_vm}</b>
+       &nbsp; ${d.deadline_met?'<span class="pos">deadline met</span>':'<span class="neg">missed</span>'}
+       &nbsp; $${d.cost_usd} · ${d.energy_wh} Wh` +
+      (d.masked_vms.length?`<br>masked (over 90% util): VM ${d.masked_vms.join(', ')}`:'<br>no VM above the 90% mask threshold') +
+      `<br>why: ${feats}`;
+  };
+}).catch(()=>{});
+</script>
+</body>
+</html>
