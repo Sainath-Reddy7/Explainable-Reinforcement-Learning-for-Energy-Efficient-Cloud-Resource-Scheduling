@@ -46,7 +46,10 @@ def load():
     global _net, _env, _state, _pool, _manifest
     ckpt = np.load(HERE / "model" / "agent_checkpoint.npz")
     _net = QNetwork(STATE_DIM, ACTION_DIM)
-    _net.set_weights({k: ckpt[k] for k in ckpt.files})
+    _net.set_weights({k: ckpt[k] for k in ckpt.files if not k.startswith("run_")})
+    _net.run_mean = ckpt["run_mean"].astype(np.float32)
+    _net.run_var = ckpt["run_var"].astype(np.float32)
+    _net.run_count = float(ckpt["run_count"])
     _pool_npz = np.load(HERE / "model" / "borg_task_pool.npz")
     _pool = {k: _pool_npz[k] for k in _pool_npz.files if _pool_npz[k].ndim == 1}
     _env = CloudSchedulingEnv(_pool, num_vms=8, num_tasks=200, seed=0,
